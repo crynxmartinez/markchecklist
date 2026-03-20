@@ -47,99 +47,47 @@ export async function POST(request: Request) {
     }
     debugInfo.steps.push('✅ GHL credentials found')
 
-    // Search for existing contact by email
-    const searchUrl = `https://services.leadconnectorhq.com/contacts/?locationId=${ghlLocationId}&email=${encodeURIComponent(email)}`
-    debugInfo.steps.push('🔍 Searching for contact in GHL')
+    // Upsert contact to GHL using lookup by email
+    debugInfo.steps.push('� Upserting contact to GHL')
     
-    const searchResponse = await fetch(searchUrl, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${ghlApiKey}`,
-        'Version': '2021-07-28',
-        'Content-Type': 'application/json'
+    const upsertPayload = {
+      locationId: ghlLocationId,
+      email: email,
+      customFields: [
+        {
+          key: 'checklist_',
+          field_value: percentage.toString()
+        }
+      ],
+      tags: ['mark checklist']
+    }
+    
+    // Use GHL's upsert endpoint with email lookup
+    const upsertResponse = await fetch(
+      'https://services.leadconnectorhq.com/contacts/upsert',
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${ghlApiKey}`,
+          'Version': '2021-07-28',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(upsertPayload)
       }
-    })
-
-    const searchData = await searchResponse.json()
+    )
+    
+    const upsertData = await upsertResponse.json()
     debugInfo.ghlApiCalls.push({
-      action: 'SEARCH',
-      url: searchUrl,
-      status: searchResponse.status,
-      response: searchData
+      action: 'UPSERT',
+      payload: upsertPayload,
+      status: upsertResponse.status,
+      response: upsertData
     })
     
-    const existingContact = searchData.contacts && searchData.contacts.length > 0 ? searchData.contacts[0] : null
-    debugInfo.steps.push(existingContact ? `✅ Contact found (ID: ${existingContact.id})` : '➕ Contact not found, will create new')
-
-    if (existingContact) {
-      // Update existing contact
-      const updatePayload = {
-        customFields: [
-          {
-            key: 'checklist_',
-            field_value: percentage.toString()
-          }
-        ],
-        tags: ['mark checklist']
-      }
-      
-      const updateResponse = await fetch(
-        `https://services.leadconnectorhq.com/contacts/${existingContact.id}`,
-        {
-          method: 'PUT',
-          headers: {
-            'Authorization': `Bearer ${ghlApiKey}`,
-            'Version': '2021-07-28',
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify(updatePayload)
-        }
-      )
-      
-      const updateData = await updateResponse.json()
-      debugInfo.ghlApiCalls.push({
-        action: 'UPDATE',
-        contactId: existingContact.id,
-        payload: updatePayload,
-        status: updateResponse.status,
-        response: updateData
-      })
-      debugInfo.steps.push('✅ Contact updated in GHL')
+    if (upsertResponse.ok) {
+      debugInfo.steps.push('✅ Contact upserted successfully in GHL')
     } else {
-      // Create new contact
-      const createPayload = {
-        locationId: ghlLocationId,
-        email: email,
-        customFields: [
-          {
-            key: 'checklist_',
-            field_value: percentage.toString()
-          }
-        ],
-        tags: ['mark checklist']
-      }
-      
-      const createResponse = await fetch(
-        'https://services.leadconnectorhq.com/contacts/',
-        {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${ghlApiKey}`,
-            'Version': '2021-07-28',
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify(createPayload)
-        }
-      )
-      
-      const createData = await createResponse.json()
-      debugInfo.ghlApiCalls.push({
-        action: 'CREATE',
-        payload: createPayload,
-        status: createResponse.status,
-        response: createData
-      })
-      debugInfo.steps.push('✅ New contact created in GHL')
+      debugInfo.steps.push(`❌ GHL upsert failed: ${upsertData.message || 'Unknown error'}`)
     }
 
     return NextResponse.json({ 
