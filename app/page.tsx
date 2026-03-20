@@ -49,10 +49,22 @@ export default function Home() {
   const [newAgentName, setNewAgentName] = useState('')
   const [newAgentEmail, setNewAgentEmail] = useState('')
   const [saving, setSaving] = useState(false)
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
 
   useEffect(() => {
     fetchAgents()
   }, [])
+
+  useEffect(() => {
+    if (toast) {
+      const timer = setTimeout(() => setToast(null), 3000)
+      return () => clearTimeout(timer)
+    }
+  }, [toast])
+
+  const showToast = (message: string, type: 'success' | 'error' = 'success') => {
+    setToast({ message, type })
+  }
 
   const fetchAgents = async () => {
     try {
@@ -118,13 +130,13 @@ export default function Home() {
           console.log('GHL API Calls:', data.debug.ghlApiCalls)
           console.groupEnd()
         }
-        alert('Progress saved and sent to GHL')
+        showToast('Progress saved and sent to GHL', 'success')
       } else {
-        alert('❌ ' + (data.error || 'Failed to save progress'))
+        showToast(data.error || 'Failed to save progress', 'error')
       }
     } catch (error) {
       console.error('Failed to save progress:', error)
-      alert('❌ Failed to save progress')
+      showToast('Failed to save progress', 'error')
     } finally {
       setSaving(false)
     }
@@ -132,7 +144,7 @@ export default function Home() {
 
   const addNewAgent = async () => {
     if (!newAgentName || !newAgentEmail) {
-      alert('Please enter both name and email')
+      showToast('Please enter both name and email', 'error')
       return
     }
 
@@ -151,14 +163,14 @@ export default function Home() {
         setShowModal(false)
         setNewAgentName('')
         setNewAgentEmail('')
-        alert('Agent added successfully!')
+        showToast('Agent added successfully!', 'success')
       } else {
         const data = await res.json()
-        alert(data.error || 'Failed to add agent')
+        showToast(data.error || 'Failed to add agent', 'error')
       }
     } catch (error) {
       console.error('Failed to add agent:', error)
-      alert('Failed to add agent')
+      showToast('Failed to add agent', 'error')
     }
   }
 
@@ -286,6 +298,39 @@ export default function Home() {
           )}
         </div>
       </div>
+
+      {toast && (
+        <div className="fixed top-4 right-4 z-50 animate-slide-in">
+          <div className={`rounded-xl shadow-2xl p-4 min-w-[300px] max-w-md ${
+            toast.type === 'success' 
+              ? 'bg-gradient-to-r from-green-500 to-emerald-500' 
+              : 'bg-gradient-to-r from-red-500 to-rose-500'
+          }`}>
+            <div className="flex items-center gap-3">
+              <div className="flex-shrink-0">
+                {toast.type === 'success' ? (
+                  <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                ) : (
+                  <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                )}
+              </div>
+              <p className="text-white font-medium flex-1">{toast.message}</p>
+              <button
+                onClick={() => setToast(null)}
+                className="flex-shrink-0 text-white hover:text-gray-200 transition"
+              >
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
