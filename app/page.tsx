@@ -215,14 +215,25 @@ export default function Home() {
 
           {selectedAgent && (
             <>
-              <div className="mb-8 bg-gray-50 p-6 rounded-lg">
-                <h3 className="text-lg font-semibold mb-3">Onboarding Progress</h3>
-                <div className="bg-gray-200 h-8 rounded-full overflow-hidden">
-                  <div
-                    className="bg-gradient-to-r from-green-500 to-green-600 h-full flex items-center justify-center text-white font-semibold transition-all duration-300"
-                    style={{ width: `${percentage}%` }}
-                  >
+              <div className="mb-8 bg-gradient-to-br from-gray-50 to-gray-100 p-8 rounded-2xl shadow-sm border border-gray-200">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-xl font-bold text-gray-800">Onboarding Progress</h3>
+                  <span className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
                     {percentage}%
+                  </span>
+                </div>
+                <div className="relative">
+                  <div className="bg-gray-200 h-4 rounded-full overflow-hidden shadow-inner">
+                    <div
+                      className="h-full bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 rounded-full transition-all duration-500 ease-out shadow-lg relative overflow-hidden"
+                      style={{ width: `${percentage}%` }}
+                    >
+                      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white to-transparent opacity-30 animate-shimmer"></div>
+                    </div>
+                  </div>
+                  <div className="flex justify-between mt-2 text-xs text-gray-500">
+                    <span>Start</span>
+                    <span>Complete</span>
                   </div>
                 </div>
               </div>
