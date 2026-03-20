@@ -259,11 +259,6 @@ export default function Home() {
 
               <div className="border-t pt-8">
                 <h3 className="text-lg font-semibold mb-4">Submit Progress</h3>
-                <div className="bg-blue-50 p-4 rounded-md mb-4 text-sm">
-                  <strong>Hidden fields auto-populated:</strong>
-                  <div>Email: {selectedAgent.email}</div>
-                  <div>Completion: {percentage}%</div>
-                </div>
 
                 <iframe
                   src="https://link.crushitmarketing.net/widget/form/eWLew5BOuxjttEGpWQK2"
