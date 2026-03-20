@@ -48,14 +48,11 @@ export default function Home() {
   const [showModal, setShowModal] = useState(false)
   const [newAgentName, setNewAgentName] = useState('')
   const [newAgentEmail, setNewAgentEmail] = useState('')
+  const [saving, setSaving] = useState(false)
 
   useEffect(() => {
     fetchAgents()
   }, [])
-
-  useEffect(() => {
-    updateGHLHiddenFields()
-  }, [selectedAgent, percentage])
 
   const fetchAgents = async () => {
     try {
@@ -93,43 +90,34 @@ export default function Home() {
     setPercentage(newPercentage)
   }
 
-  const updateGHLHiddenFields = () => {
-    setTimeout(() => {
-      const emailField = document.querySelector('input[name="email"]') as HTMLInputElement
-      const percentageField = document.querySelector('input[name="checklist_percentage"]') as HTMLInputElement
-
-      if (emailField && selectedAgent) {
-        emailField.value = selectedAgent.email
-        emailField.dispatchEvent(new Event('input', { bubbles: true }))
-      }
-      if (percentageField) {
-        percentageField.value = percentage.toString()
-        percentageField.dispatchEvent(new Event('input', { bubbles: true }))
-      }
-    }, 1000)
-  }
-
   const handleSaveProgress = async () => {
     if (!selectedAgent) return
 
+    setSaving(true)
     try {
-      const res = await fetch(`/api/agents/${selectedAgent.id}`, {
-        method: 'PUT',
+      const res = await fetch('/api/save-progress', {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          agentId: selectedAgent.id,
+          email: selectedAgent.email,
           checklistState: checklist,
           percentage: percentage
         })
       })
 
+      const data = await res.json()
+
       if (res.ok) {
-        alert('Progress saved successfully!')
+        alert('✅ ' + data.message)
       } else {
-        alert('Failed to save progress')
+        alert('❌ ' + (data.error || 'Failed to save progress'))
       }
     } catch (error) {
       console.error('Failed to save progress:', error)
-      alert('Failed to save progress')
+      alert('❌ Failed to save progress')
+    } finally {
+      setSaving(false)
     }
   }
 
@@ -264,33 +252,29 @@ export default function Home() {
                 <div className="mb-6">
                   <button
                     onClick={handleSaveProgress}
-                    className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white px-8 py-4 rounded-xl font-semibold text-lg hover:from-blue-700 hover:to-purple-700 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+                    disabled={saving}
+                    className={`w-full px-8 py-4 rounded-xl font-semibold text-lg transition-all duration-300 shadow-lg ${
+                      saving 
+                        ? 'bg-gray-400 cursor-not-allowed' 
+                        : 'bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:from-blue-700 hover:to-purple-700 hover:shadow-xl transform hover:-translate-y-0.5'
+                    }`}
                   >
-                    💾 Save Progress
+                    {saving ? (
+                      <span className="flex items-center justify-center gap-2">
+                        <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        Saving...
+                      </span>
+                    ) : (
+                      '💾 Save Progress & Sync to GHL'
+                    )}
                   </button>
-                  <p className="text-sm text-gray-500 mt-2 text-center">Click to save your checklist progress to the database</p>
+                  <p className="text-sm text-gray-500 mt-2 text-center">
+                    Saves to database and syncs to GHL with "mark checklist" tag
+                  </p>
                 </div>
-
-                <h3 className="text-lg font-semibold mb-4">Submit to GHL</h3>
-
-                <iframe
-                  src="https://link.crushitmarketing.net/widget/form/eWLew5BOuxjttEGpWQK2"
-                  style={{ width: '100%', height: '500px', border: 'none', borderRadius: '8px' }}
-                  id="inline-eWLew5BOuxjttEGpWQK2"
-                  data-layout="{'id':'INLINE'}"
-                  data-trigger-type="alwaysShow"
-                  data-trigger-value=""
-                  data-activation-type="alwaysActivated"
-                  data-activation-value=""
-                  data-deactivation-type="neverDeactivate"
-                  data-deactivation-value=""
-                  data-form-name="Mark Checklist"
-                  data-height="404"
-                  data-layout-iframe-id="inline-eWLew5BOuxjttEGpWQK2"
-                  data-form-id="eWLew5BOuxjttEGpWQK2"
-                  title="Mark Checklist"
-                />
-                <script src="https://link.crushitmarketing.net/js/form_embed.js"></script>
               </div>
             </>
           )}
