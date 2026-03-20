@@ -1,7 +1,5 @@
 import { NextResponse } from 'next/server'
-import { PrismaClient } from '@prisma/client'
-
-const prisma = new PrismaClient()
+import { prisma } from '@/lib/prisma'
 
 // GET all agents
 export async function GET() {
@@ -11,7 +9,8 @@ export async function GET() {
     })
     return NextResponse.json(agents)
   } catch (error) {
-    return NextResponse.json({ error: 'Failed to fetch agents' }, { status: 500 })
+    console.error('Failed to fetch agents:', error)
+    return NextResponse.json([], { status: 200 })
   }
 }
 
@@ -35,6 +34,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json(agent)
   } catch (error: any) {
+    console.error('Failed to create agent:', error)
     if (error.code === 'P2002') {
       return NextResponse.json({ error: 'Agent with this email already exists' }, { status: 409 })
     }

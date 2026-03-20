@@ -1,6 +1,8 @@
 import { PrismaClient } from '@prisma/client'
 
-const prisma = new PrismaClient()
+const prisma = new PrismaClient({
+  log: ['query', 'error', 'warn'],
+})
 
 const agents = [
   { name: "Alexandra Haro", email: "alexandra@coryhometeam.com" },

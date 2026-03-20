@@ -1,7 +1,5 @@
 import { NextResponse } from 'next/server'
-import { PrismaClient } from '@prisma/client'
-
-const prisma = new PrismaClient()
+import { prisma } from '@/lib/prisma'
 
 // PUT update agent progress
 export async function PUT(
@@ -21,6 +19,7 @@ export async function PUT(
 
     return NextResponse.json(agent)
   } catch (error) {
+    console.error('Failed to update agent:', error)
     return NextResponse.json({ error: 'Failed to update agent' }, { status: 500 })
   }
 }
