@@ -109,11 +109,11 @@ export default function Home() {
     }, 1000)
   }
 
-  const handleFormSubmit = async () => {
+  const handleSaveProgress = async () => {
     if (!selectedAgent) return
 
     try {
-      await fetch(`/api/agents/${selectedAgent.id}`, {
+      const res = await fetch(`/api/agents/${selectedAgent.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -121,7 +121,12 @@ export default function Home() {
           percentage: percentage
         })
       })
-      alert('Progress saved successfully!')
+
+      if (res.ok) {
+        alert('Progress saved successfully!')
+      } else {
+        alert('Failed to save progress')
+      }
     } catch (error) {
       console.error('Failed to save progress:', error)
       alert('Failed to save progress')
@@ -160,19 +165,6 @@ export default function Home() {
     }
   }
 
-  useEffect(() => {
-    const iframe = document.getElementById('inline-eWLew5BOuxjttEGpWQK2') as HTMLIFrameElement
-    if (!iframe) return
-
-    const handleMessage = (event: MessageEvent) => {
-      if (event.data?.type === 'form-submitted') {
-        handleFormSubmit()
-      }
-    }
-
-    window.addEventListener('message', handleMessage)
-    return () => window.removeEventListener('message', handleMessage)
-  }, [selectedAgent, checklist, percentage])
 
   if (loading) {
     return (
@@ -269,7 +261,17 @@ export default function Home() {
               </div>
 
               <div className="border-t pt-8">
-                <h3 className="text-lg font-semibold mb-4">Submit Progress</h3>
+                <div className="mb-6">
+                  <button
+                    onClick={handleSaveProgress}
+                    className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white px-8 py-4 rounded-xl font-semibold text-lg hover:from-blue-700 hover:to-purple-700 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+                  >
+                    💾 Save Progress
+                  </button>
+                  <p className="text-sm text-gray-500 mt-2 text-center">Click to save your checklist progress to the database</p>
+                </div>
+
+                <h3 className="text-lg font-semibold mb-4">Submit to GHL</h3>
 
                 <iframe
                   src="https://link.crushitmarketing.net/widget/form/eWLew5BOuxjttEGpWQK2"
