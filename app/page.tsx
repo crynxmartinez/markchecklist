@@ -109,7 +109,7 @@ export default function Home() {
       const data = await res.json()
 
       if (res.ok) {
-        alert('✅ ' + data.message)
+        alert('Progress saved and sent to GHL')
       } else {
         alert('❌ ' + (data.error || 'Failed to save progress'))
       }
@@ -271,9 +271,6 @@ export default function Home() {
                       '💾 Save Progress & Sync to GHL'
                     )}
                   </button>
-                  <p className="text-sm text-gray-500 mt-2 text-center">
-                    Saves to database and syncs to GHL with "mark checklist" tag
-                  </p>
                 </div>
               </div>
             </>
