@@ -109,6 +109,15 @@ export default function Home() {
       const data = await res.json()
 
       if (res.ok) {
+        // Log debug info to browser console
+        if (data.debug) {
+          console.group('🔍 GHL Sync Debug Info')
+          console.log('Steps:', data.debug.steps)
+          console.log('GHL Credentials:', data.debug.ghlCredentials)
+          console.log('Request Data:', data.debug.requestData)
+          console.log('GHL API Calls:', data.debug.ghlApiCalls)
+          console.groupEnd()
+        }
         alert('Progress saved and sent to GHL')
       } else {
         alert('❌ ' + (data.error || 'Failed to save progress'))
