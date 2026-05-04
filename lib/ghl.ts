@@ -26,7 +26,11 @@ export async function fetchGHLContacts(locationId: string, apiKey: string) {
   let nextPageUrl: string | undefined = `${GHL_API_BASE}/contacts/?locationId=${locationId}`
 
   try {
+    console.log('Starting GHL contact fetch for location:', locationId)
+    
     while (nextPageUrl) {
+      console.log('Fetching from URL:', nextPageUrl)
+      
       const response = await fetch(nextPageUrl, {
         headers: {
           Authorization: `Bearer ${apiKey}`,
@@ -34,16 +38,29 @@ export async function fetchGHLContacts(locationId: string, apiKey: string) {
         },
       })
 
+      console.log('Response status:', response.status)
+
       if (!response.ok) {
-        throw new Error(`GHL API error: ${response.status} ${response.statusText}`)
+        const errorText = await response.text()
+        console.error('GHL API error response:', errorText)
+        throw new Error(`GHL API error: ${response.status} ${response.statusText} - ${errorText}`)
       }
 
       const data: GHLContactsResponse = await response.json()
-      contacts.push(...data.contacts)
+      console.log('Received data:', { 
+        contactCount: data.contacts?.length || 0, 
+        hasNextPage: !!data.meta?.nextPageUrl,
+        total: data.meta?.total 
+      })
+      
+      if (data.contacts && data.contacts.length > 0) {
+        contacts.push(...data.contacts)
+      }
 
       nextPageUrl = data.meta?.nextPageUrl
     }
 
+    console.log('Total contacts fetched:', contacts.length)
     return contacts
   } catch (error) {
     console.error('Error fetching GHL contacts:', error)

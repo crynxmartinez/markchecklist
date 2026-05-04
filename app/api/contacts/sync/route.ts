@@ -8,6 +8,12 @@ export async function POST() {
     const apiKey = process.env.GHL_API_KEY
     const locationId = process.env.GHL_LOCATION_ID
 
+    console.log('Sync started with:', { 
+      hasApiKey: !!apiKey, 
+      hasLocationId: !!locationId,
+      locationId: locationId 
+    })
+
     if (!apiKey || !locationId) {
       return NextResponse.json(
         { error: 'GHL API credentials not configured' },
@@ -15,7 +21,9 @@ export async function POST() {
       )
     }
 
+    console.log('Fetching contacts from GHL...')
     const ghlContacts = await fetchGHLContacts(locationId, apiKey)
+    console.log('Fetched contacts count:', ghlContacts.length)
 
     let created = 0
     let updated = 0
