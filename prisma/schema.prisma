@@ -51,6 +51,7 @@ model Contact {
   phone           String?
   tags            String[]
   source          String?
+  subAccount      String?
   dateAdded       DateTime?
   lastUpdated     DateTime?
   customFields    Json?

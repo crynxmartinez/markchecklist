@@ -23,6 +23,7 @@ interface Contact {
   phone?: string
   tags: string[]
   source?: string
+  subAccount?: string
   dateAdded?: string
   lastUpdated?: string
   createdAt: string
@@ -155,6 +156,7 @@ export default function RecruitmentPage() {
                   <TableHead>Phone</TableHead>
                   <TableHead>Tags</TableHead>
                   <TableHead>Source</TableHead>
+                  <TableHead>Sub Account</TableHead>
                   <TableHead>Last Updated</TableHead>
                 </TableRow>
               </TableHeader>
@@ -187,6 +189,11 @@ export default function RecruitmentPage() {
                       </div>
                     </TableCell>
                     <TableCell>{contact.source || 'N/A'}</TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className="text-xs">
+                        {contact.subAccount || 'N/A'}
+                      </Badge>
+                    </TableCell>
                     <TableCell>
                       {contact.lastUpdated
                         ? new Date(contact.lastUpdated).toLocaleDateString()

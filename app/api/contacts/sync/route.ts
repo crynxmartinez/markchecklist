@@ -3,15 +3,20 @@ import { fetchGHLContacts } from '@/lib/ghl'
 import { prisma } from '@/lib/prisma'
 import { Prisma } from '@prisma/client'
 
-export async function POST() {
+export async function POST(request: Request) {
   try {
     const apiKey = process.env.GHL_API_KEY
     const locationId = process.env.GHL_LOCATION_ID
+    
+    // Get subAccount from request body
+    const body = await request.json().catch(() => ({}))
+    const subAccount = body.subAccount || 'Cory Home Team Agent Recruiter'
 
     console.log('Sync started with:', { 
       hasApiKey: !!apiKey, 
       hasLocationId: !!locationId,
-      locationId: locationId 
+      locationId: locationId,
+      subAccount: subAccount
     })
 
     if (!apiKey || !locationId) {
@@ -40,6 +45,7 @@ export async function POST() {
             phone: contact.phone,
             tags: contact.tags || [],
             source: contact.source,
+            subAccount: subAccount,
             dateAdded: contact.dateAdded ? new Date(contact.dateAdded) : null,
             lastUpdated: contact.dateUpdated ? new Date(contact.dateUpdated) : null,
             customFields: contact.customFields || Prisma.JsonNull,
@@ -52,6 +58,7 @@ export async function POST() {
             phone: contact.phone,
             tags: contact.tags || [],
             source: contact.source,
+            subAccount: subAccount,
             dateAdded: contact.dateAdded ? new Date(contact.dateAdded) : null,
             lastUpdated: contact.dateUpdated ? new Date(contact.dateUpdated) : null,
             customFields: contact.customFields || Prisma.JsonNull,
