@@ -197,3 +197,124 @@ export async function sendEmail({ contactId, subject, message, apiKey }: SendEma
     throw error
   }
 }
+
+interface CreateContactParams {
+  firstName?: string
+  lastName?: string
+  email?: string
+  phone?: string
+  tags?: string[]
+  source?: string
+  locationId: string
+  apiKey: string
+}
+
+interface UpdateContactParams {
+  contactId: string
+  firstName?: string
+  lastName?: string
+  email?: string
+  phone?: string
+  tags?: string[]
+  source?: string
+  apiKey: string
+}
+
+export async function createGHLContact(params: CreateContactParams) {
+  try {
+    console.log('Creating GHL contact:', params)
+    
+    const response = await fetch(`${GHL_API_BASE}/contacts/`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${params.apiKey}`,
+        'Version': GHL_API_VERSION,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        firstName: params.firstName,
+        lastName: params.lastName,
+        email: params.email,
+        phone: params.phone,
+        tags: params.tags || [],
+        source: params.source,
+        locationId: params.locationId,
+      }),
+    })
+
+    if (!response.ok) {
+      const errorText = await response.text()
+      console.error('GHL create contact error:', errorText)
+      throw new Error(`Failed to create contact: ${response.status} ${response.statusText}`)
+    }
+
+    const data = await response.json()
+    console.log('Contact created successfully:', data)
+    return data.contact as GHLContact
+  } catch (error) {
+    console.error('Error creating GHL contact:', error)
+    throw error
+  }
+}
+
+export async function updateGHLContact(params: UpdateContactParams) {
+  try {
+    console.log('Updating GHL contact:', params.contactId)
+    
+    const response = await fetch(`${GHL_API_BASE}/contacts/${params.contactId}`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${params.apiKey}`,
+        'Version': GHL_API_VERSION,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        firstName: params.firstName,
+        lastName: params.lastName,
+        email: params.email,
+        phone: params.phone,
+        tags: params.tags,
+        source: params.source,
+      }),
+    })
+
+    if (!response.ok) {
+      const errorText = await response.text()
+      console.error('GHL update contact error:', errorText)
+      throw new Error(`Failed to update contact: ${response.status} ${response.statusText}`)
+    }
+
+    const data = await response.json()
+    console.log('Contact updated successfully:', data)
+    return data.contact as GHLContact
+  } catch (error) {
+    console.error('Error updating GHL contact:', error)
+    throw error
+  }
+}
+
+export async function deleteGHLContact(contactId: string, apiKey: string) {
+  try {
+    console.log('Deleting GHL contact:', contactId)
+    
+    const response = await fetch(`${GHL_API_BASE}/contacts/${contactId}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Version': GHL_API_VERSION,
+      },
+    })
+
+    if (!response.ok) {
+      const errorText = await response.text()
+      console.error('GHL delete contact error:', errorText)
+      throw new Error(`Failed to delete contact: ${response.status} ${response.statusText}`)
+    }
+
+    console.log('Contact deleted successfully')
+    return true
+  } catch (error) {
+    console.error('Error deleting GHL contact:', error)
+    throw error
+  }
+}

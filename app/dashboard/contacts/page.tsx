@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { RefreshCw, Users, Mail, Phone, Tag, MessageSquare, Send } from 'lucide-react'
+import { RefreshCw, Users, Mail, Phone, Tag, MessageSquare, Send, Plus, Edit, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import {
@@ -24,6 +24,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
+import { Checkbox } from '@/components/ui/checkbox'
 
 interface Contact {
   id: string
@@ -56,6 +57,20 @@ export default function ContactsPage() {
   const [messageSubject, setMessageSubject] = useState('')
   const [messageBody, setMessageBody] = useState('')
   const [sending, setSending] = useState(false)
+
+  // CRUD state
+  const [selectedContacts, setSelectedContacts] = useState<Set<string>>(new Set())
+  const [createDialogOpen, setCreateDialogOpen] = useState(false)
+  const [editDialogOpen, setEditDialogOpen] = useState(false)
+  const [formData, setFormData] = useState({
+    firstName: '',
+    lastName: '',
+    email: '',
+    phone: '',
+    tags: '',
+    source: '',
+  })
+  const [saving, setSaving] = useState(false)
 
   const fetchContacts = async () => {
     try {
@@ -149,6 +164,124 @@ export default function ContactsPage() {
     }
   }
 
+  const handleCreateContact = async () => {
+    setSaving(true)
+    try {
+      const response = await fetch('/api/contacts/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...formData,
+          tags: formData.tags.split(',').map(t => t.trim()).filter(Boolean),
+        }),
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        alert('Contact created successfully!')
+        setCreateDialogOpen(false)
+        setFormData({ firstName: '', lastName: '', email: '', phone: '', tags: '', source: '' })
+        await fetchContacts()
+      } else {
+        alert(`Failed to create contact: ${data.error}`)
+      }
+    } catch (error) {
+      alert('Error creating contact')
+      console.error('Create contact error:', error)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleEditContact = async () => {
+    if (!selectedContact) return
+
+    setSaving(true)
+    try {
+      const response = await fetch(`/api/contacts/${selectedContact.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...formData,
+          tags: formData.tags.split(',').map(t => t.trim()).filter(Boolean),
+        }),
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        alert('Contact updated successfully!')
+        setEditDialogOpen(false)
+        setSelectedContacts(new Set())
+        await fetchContacts()
+      } else {
+        alert(`Failed to update contact: ${data.error}`)
+      }
+    } catch (error) {
+      alert('Error updating contact')
+      console.error('Update contact error:', error)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleDeleteContacts = async () => {
+    if (selectedContacts.size === 0) return
+
+    if (!confirm(`Delete ${selectedContacts.size} contact(s)? This will also delete them from GHL.`)) {
+      return
+    }
+
+    try {
+      const contactIds = Array.from(selectedContacts)
+      for (const contactId of contactIds) {
+        await fetch(`/api/contacts/${contactId}`, {
+          method: 'DELETE',
+        })
+      }
+
+      alert(`${selectedContacts.size} contact(s) deleted successfully!`)
+      setSelectedContacts(new Set())
+      await fetchContacts()
+    } catch (error) {
+      alert('Error deleting contacts')
+      console.error('Delete contacts error:', error)
+    }
+  }
+
+  const toggleContactSelection = (contactId: string) => {
+    const newSelection = new Set(selectedContacts)
+    if (newSelection.has(contactId)) {
+      newSelection.delete(contactId)
+    } else {
+      newSelection.add(contactId)
+    }
+    setSelectedContacts(newSelection)
+  }
+
+  const openEditDialog = () => {
+    if (selectedContacts.size !== 1) {
+      alert('Please select exactly one contact to edit')
+      return
+    }
+
+    const contactId = Array.from(selectedContacts)[0]
+    const contact = contacts.find(c => c.id === contactId)
+    if (!contact) return
+
+    setSelectedContact(contact)
+    setFormData({
+      firstName: contact.firstName || '',
+      lastName: contact.lastName || '',
+      email: contact.email || '',
+      phone: contact.phone || '',
+      tags: contact.tags.join(', '),
+      source: contact.source || '',
+    })
+    setEditDialogOpen(true)
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -156,10 +289,32 @@ export default function ContactsPage() {
           <h1 className="text-3xl font-bold">CHT Contact Database</h1>
           <p className="text-muted-foreground">All contacts from GHL sub-accounts synced to CHT System</p>
         </div>
-        <Button onClick={handleSync} disabled={syncing}>
-          <RefreshCw className={`mr-2 h-4 w-4 ${syncing ? 'animate-spin' : ''}`} />
-          {syncing ? 'Syncing...' : 'Sync from GHL'}
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setCreateDialogOpen(true)}>
+            <Plus className="mr-2 h-4 w-4" />
+            New Contact
+          </Button>
+          <Button 
+            variant="outline" 
+            onClick={openEditDialog}
+            disabled={selectedContacts.size !== 1}
+          >
+            <Edit className="mr-2 h-4 w-4" />
+            Edit
+          </Button>
+          <Button 
+            variant="outline" 
+            onClick={handleDeleteContacts}
+            disabled={selectedContacts.size === 0}
+          >
+            <Trash2 className="mr-2 h-4 w-4" />
+            Delete ({selectedContacts.size})
+          </Button>
+          <Button onClick={handleSync} disabled={syncing}>
+            <RefreshCw className={`mr-2 h-4 w-4 ${syncing ? 'animate-spin' : ''}`} />
+            {syncing ? 'Syncing...' : 'Sync from GHL'}
+          </Button>
+        </div>
       </div>
 
       {syncMessage && (
@@ -223,6 +378,7 @@ export default function ContactsPage() {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-12"></TableHead>
                   <TableHead>Name</TableHead>
                   <TableHead>Email</TableHead>
                   <TableHead>Phone</TableHead>
@@ -236,6 +392,12 @@ export default function ContactsPage() {
               <TableBody>
                 {currentContacts.map((contact) => (
                   <TableRow key={contact.id}>
+                    <TableCell>
+                      <Checkbox
+                        checked={selectedContacts.has(contact.id)}
+                        onCheckedChange={() => toggleContactSelection(contact.id)}
+                      />
+                    </TableCell>
                     <TableCell className="font-medium">
                       {contact.firstName || contact.lastName
                         ? `${contact.firstName || ''} ${contact.lastName || ''}`.trim()
@@ -396,6 +558,154 @@ export default function ContactsPage() {
             <Button onClick={handleSendMessage} disabled={sending || !messageBody || (messageType === 'email' && !messageSubject)}>
               <Send className="mr-2 h-4 w-4" />
               {sending ? 'Sending...' : 'Send'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Create Contact Dialog */}
+      <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
+        <DialogContent className="sm:max-w-[525px]">
+          <DialogHeader>
+            <DialogTitle>Create New Contact</DialogTitle>
+            <DialogDescription>
+              Add a new contact to CHT Database and sync to GHL
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="firstName">First Name</Label>
+                <Input
+                  id="firstName"
+                  value={formData.firstName}
+                  onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="lastName">Last Name</Label>
+                <Input
+                  id="lastName"
+                  value={formData.lastName}
+                  onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+                />
+              </div>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                value={formData.email}
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="phone">Phone</Label>
+              <Input
+                id="phone"
+                value={formData.phone}
+                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="tags">Tags (comma-separated)</Label>
+              <Input
+                id="tags"
+                value={formData.tags}
+                onChange={(e) => setFormData({ ...formData, tags: e.target.value })}
+                placeholder="tag1, tag2, tag3"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="source">Source</Label>
+              <Input
+                id="source"
+                value={formData.source}
+                onChange={(e) => setFormData({ ...formData, source: e.target.value })}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCreateDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleCreateContact} disabled={saving}>
+              {saving ? 'Creating...' : 'Create Contact'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Contact Dialog */}
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent className="sm:max-w-[525px]">
+          <DialogHeader>
+            <DialogTitle>Edit Contact</DialogTitle>
+            <DialogDescription>
+              Update contact information in CHT Database and sync to GHL
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="edit-firstName">First Name</Label>
+                <Input
+                  id="edit-firstName"
+                  value={formData.firstName}
+                  onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="edit-lastName">Last Name</Label>
+                <Input
+                  id="edit-lastName"
+                  value={formData.lastName}
+                  onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+                />
+              </div>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="edit-email">Email</Label>
+              <Input
+                id="edit-email"
+                type="email"
+                value={formData.email}
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="edit-phone">Phone</Label>
+              <Input
+                id="edit-phone"
+                value={formData.phone}
+                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="edit-tags">Tags (comma-separated)</Label>
+              <Input
+                id="edit-tags"
+                value={formData.tags}
+                onChange={(e) => setFormData({ ...formData, tags: e.target.value })}
+                placeholder="tag1, tag2, tag3"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="edit-source">Source</Label>
+              <Input
+                id="edit-source"
+                value={formData.source}
+                onChange={(e) => setFormData({ ...formData, source: e.target.value })}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleEditContact} disabled={saving}>
+              {saving ? 'Updating...' : 'Update Contact'}
             </Button>
           </DialogFooter>
         </DialogContent>
