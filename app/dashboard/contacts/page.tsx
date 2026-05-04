@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { RefreshCw, Users, Mail, Phone, Tag } from 'lucide-react'
+import { RefreshCw, Users, Mail, Phone, Tag, MessageSquare, Send } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import {
@@ -13,6 +13,17 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
+import { Label } from '@/components/ui/label'
 
 interface Contact {
   id: string
@@ -37,6 +48,14 @@ export default function ContactsPage() {
   const [syncMessage, setSyncMessage] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage] = useState(50)
+  
+  // Messaging state
+  const [messageDialogOpen, setMessageDialogOpen] = useState(false)
+  const [messageType, setMessageType] = useState<'sms' | 'email'>('sms')
+  const [selectedContact, setSelectedContact] = useState<Contact | null>(null)
+  const [messageSubject, setMessageSubject] = useState('')
+  const [messageBody, setMessageBody] = useState('')
+  const [sending, setSending] = useState(false)
 
   const fetchContacts = async () => {
     try {
@@ -88,6 +107,46 @@ export default function ContactsPage() {
   const goToPage = (page: number) => {
     setCurrentPage(page)
     window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  const openMessageDialog = (contact: Contact, type: 'sms' | 'email') => {
+    setSelectedContact(contact)
+    setMessageType(type)
+    setMessageSubject('')
+    setMessageBody('')
+    setMessageDialogOpen(true)
+  }
+
+  const handleSendMessage = async () => {
+    if (!selectedContact) return
+
+    setSending(true)
+    try {
+      const endpoint = messageType === 'sms' ? '/api/messages/sms' : '/api/messages/email'
+      const body = messageType === 'sms' 
+        ? { contactId: selectedContact.ghlContactId, message: messageBody }
+        : { contactId: selectedContact.ghlContactId, subject: messageSubject, message: messageBody }
+
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        alert(`${messageType.toUpperCase()} sent successfully!`)
+        setMessageDialogOpen(false)
+      } else {
+        alert(`Failed to send ${messageType}: ${data.error}`)
+      }
+    } catch (error) {
+      alert(`Error sending ${messageType}`)
+      console.error('Send message error:', error)
+    } finally {
+      setSending(false)
+    }
   }
 
   return (
@@ -171,6 +230,7 @@ export default function ContactsPage() {
                   <TableHead>Source</TableHead>
                   <TableHead>Sub Account</TableHead>
                   <TableHead>Last Updated</TableHead>
+                  <TableHead>Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -211,6 +271,26 @@ export default function ContactsPage() {
                       {contact.lastUpdated
                         ? new Date(contact.lastUpdated).toLocaleDateString()
                         : 'N/A'}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => openMessageDialog(contact, 'sms')}
+                          disabled={!contact.phone}
+                        >
+                          <MessageSquare className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => openMessageDialog(contact, 'email')}
+                          disabled={!contact.email}
+                        >
+                          <Mail className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -271,6 +351,55 @@ export default function ContactsPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Message Dialog */}
+      <Dialog open={messageDialogOpen} onOpenChange={setMessageDialogOpen}>
+        <DialogContent className="sm:max-w-[525px]">
+          <DialogHeader>
+            <DialogTitle>
+              {messageType === 'sms' ? 'Send SMS' : 'Send Email'} to {selectedContact?.firstName} {selectedContact?.lastName}
+            </DialogTitle>
+            <DialogDescription>
+              {messageType === 'sms' 
+                ? `Sending to: ${selectedContact?.phone}`
+                : `Sending to: ${selectedContact?.email}`
+              }
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            {messageType === 'email' && (
+              <div className="grid gap-2">
+                <Label htmlFor="subject">Subject</Label>
+                <Input
+                  id="subject"
+                  value={messageSubject}
+                  onChange={(e) => setMessageSubject(e.target.value)}
+                  placeholder="Enter email subject"
+                />
+              </div>
+            )}
+            <div className="grid gap-2">
+              <Label htmlFor="message">Message</Label>
+              <Textarea
+                id="message"
+                value={messageBody}
+                onChange={(e) => setMessageBody(e.target.value)}
+                placeholder={messageType === 'sms' ? 'Enter SMS message' : 'Enter email message'}
+                rows={6}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setMessageDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleSendMessage} disabled={sending || !messageBody || (messageType === 'email' && !messageSubject)}>
+              <Send className="mr-2 h-4 w-4" />
+              {sending ? 'Sending...' : 'Send'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

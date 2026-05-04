@@ -117,3 +117,83 @@ export async function getGHLContact(contactId: string, apiKey: string) {
     throw error
   }
 }
+
+interface SendSMSParams {
+  contactId: string
+  message: string
+  apiKey: string
+}
+
+interface SendEmailParams {
+  contactId: string
+  subject: string
+  message: string
+  apiKey: string
+}
+
+export async function sendSMS({ contactId, message, apiKey }: SendSMSParams) {
+  try {
+    console.log('Sending SMS to contact:', contactId)
+    
+    const response = await fetch(`${GHL_API_BASE}/conversations/messages`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Version': GHL_API_VERSION,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        type: 'SMS',
+        contactId: contactId,
+        message: message,
+      }),
+    })
+
+    if (!response.ok) {
+      const errorText = await response.text()
+      console.error('GHL SMS error:', errorText)
+      throw new Error(`Failed to send SMS: ${response.status} ${response.statusText}`)
+    }
+
+    const data = await response.json()
+    console.log('SMS sent successfully:', data)
+    return data
+  } catch (error) {
+    console.error('Error sending SMS:', error)
+    throw error
+  }
+}
+
+export async function sendEmail({ contactId, subject, message, apiKey }: SendEmailParams) {
+  try {
+    console.log('Sending email to contact:', contactId)
+    
+    const response = await fetch(`${GHL_API_BASE}/conversations/messages`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Version': GHL_API_VERSION,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        type: 'Email',
+        contactId: contactId,
+        subject: subject,
+        html: message,
+      }),
+    })
+
+    if (!response.ok) {
+      const errorText = await response.text()
+      console.error('GHL Email error:', errorText)
+      throw new Error(`Failed to send email: ${response.status} ${response.statusText}`)
+    }
+
+    const data = await response.json()
+    console.log('Email sent successfully:', data)
+    return data
+  } catch (error) {
+    console.error('Error sending email:', error)
+    throw error
+  }
+}
