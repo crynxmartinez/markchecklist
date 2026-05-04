@@ -1,4 +1,5 @@
 import { PrismaClient } from '@prisma/client'
+import bcrypt from 'bcryptjs'
 
 const prisma = new PrismaClient({
   log: ['query', 'error', 'warn'],
@@ -64,6 +65,23 @@ const agents = [
 
 async function main() {
   console.log('🌱 Seeding database...')
+
+  const hashedPassword = await bcrypt.hash('Rasengan12@', 10)
+  
+  await prisma.user.upsert({
+    where: { email: 'admin@soldbycht.com' },
+    update: {},
+    create: {
+      email: 'admin@soldbycht.com',
+      password: hashedPassword,
+      name: 'Super Admin',
+      role: 'SUPER_ADMIN',
+      isSuperAdmin: true,
+      modules: ['RECRUITMENT', 'TRUCK_MANAGEMENT', 'ANALYTICS', 'ONBOARDING']
+    }
+  })
+
+  console.log('✅ Created super admin user')
 
   for (const agent of agents) {
     await prisma.agent.upsert({
