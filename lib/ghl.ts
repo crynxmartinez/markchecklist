@@ -16,24 +16,33 @@ interface GHLContact {
 
 interface GHLContactsResponse {
   contacts: GHLContact[]
+  total?: number
+  count?: number
   meta?: {
     total: number
-    nextPageUrl?: string
+    currentPage?: number
+    nextPage?: number
+    prevPage?: number
   }
 }
 
 export async function fetchGHLContacts(locationId: string, apiKey: string) {
   const contacts: GHLContact[] = []
-  let skip = 0
+  let startAfterId: string | undefined = undefined
   const limit = 100
-  let hasMore = true
+  let totalFetched = 0
 
   try {
     console.log('Starting GHL contact fetch for location:', locationId)
     
-    while (hasMore) {
-      const url = `${GHL_API_BASE}/contacts/?locationId=${locationId}&limit=${limit}&skip=${skip}`
+    while (true) {
+      let url = `${GHL_API_BASE}/contacts/?locationId=${locationId}&limit=${limit}`
+      if (startAfterId) {
+        url += `&startAfterId=${startAfterId}`
+      }
+      
       console.log('Fetching from URL:', url)
+      console.log('Current total fetched:', totalFetched)
       
       const response = await fetch(url, {
         method: 'GET',
@@ -55,16 +64,28 @@ export async function fetchGHLContacts(locationId: string, apiKey: string) {
       const data: GHLContactsResponse = await response.json()
       console.log('Received data:', { 
         contactCount: data.contacts?.length || 0, 
-        total: data.meta?.total,
-        skip: skip
+        total: data.total || data.meta?.total,
+        currentBatch: totalFetched
       })
       
-      if (data.contacts && data.contacts.length > 0) {
-        contacts.push(...data.contacts)
-        skip += data.contacts.length
-        hasMore = data.contacts.length === limit
-      } else {
-        hasMore = false
+      if (!data.contacts || data.contacts.length === 0) {
+        console.log('No more contacts to fetch')
+        break
+      }
+
+      contacts.push(...data.contacts)
+      totalFetched += data.contacts.length
+      
+      // Use the last contact's ID for pagination
+      const lastContact = data.contacts[data.contacts.length - 1]
+      startAfterId = lastContact.id
+      
+      console.log(`Fetched ${totalFetched} contacts so far, last ID: ${startAfterId}`)
+      
+      // If we got fewer contacts than the limit, we're done
+      if (data.contacts.length < limit) {
+        console.log('Received fewer contacts than limit, pagination complete')
+        break
       }
     }
 
