@@ -42,12 +42,6 @@ const menuItems = [
     module: null,
   },
   {
-    title: 'CHT Contact Database',
-    icon: Users,
-    url: '/dashboard/contacts',
-    module: null,
-  },
-  {
     title: 'Recruitment',
     icon: Users,
     url: '/dashboard/recruitment',
@@ -69,6 +63,12 @@ const menuItems = [
     title: 'Settings',
     icon: Settings,
     url: '/dashboard/settings',
+    module: null,
+  },
+  {
+    title: 'CHT Contact Database',
+    icon: Users,
+    url: '/dashboard/contacts',
     module: null,
   },
 ]
