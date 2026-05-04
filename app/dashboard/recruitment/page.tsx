@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { DndContext, DragEndEvent, DragOverlay, DragStartEvent, closestCorners, PointerSensor, useSensor, useSensors } from '@dnd-kit/core'
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { useSortable } from '@dnd-kit/sortable'
@@ -126,17 +126,8 @@ function KanbanColumnComponent({ column }: { column: KanbanColumn }) {
 }
 
 export default function RecruitmentPage() {
-  const [contacts, setContacts] = useState<Contact[]>([])
-  const [columns, setColumns] = useState<KanbanColumn[]>([
-    { id: 'new', title: 'New Leads', contacts: [] },
-    { id: 'contacted', title: 'Contacted', contacts: [] },
-    { id: 'qualified', title: 'Qualified', contacts: [] },
-    { id: 'interview', title: 'Interview', contacts: [] },
-    { id: 'offer', title: 'Offer', contacts: [] },
-    { id: 'hired', title: 'Hired', contacts: [] },
-  ])
+  const [columns] = useState<KanbanColumn[]>([])
   const [activeContact, setActiveContact] = useState<Contact | null>(null)
-  const [loading, setLoading] = useState(true)
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -146,36 +137,10 @@ export default function RecruitmentPage() {
     })
   )
 
-  useEffect(() => {
-    fetchContacts()
-  }, [])
-
-  const fetchContacts = async () => {
-    try {
-      const response = await fetch('/api/contacts')
-      const data = await response.json()
-      const fetchedContacts = data.contacts || []
-      setContacts(fetchedContacts)
-      organizeContactsIntoColumns(fetchedContacts)
-    } catch (error) {
-      console.error('Error fetching contacts:', error)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const organizeContactsIntoColumns = (contactsList: Contact[]) => {
-    const newColumns = columns.map(col => ({
-      ...col,
-      contacts: contactsList.filter(c => (c.recruitmentStage || 'new') === col.id)
-    }))
-    setColumns(newColumns)
-  }
-
   const handleDragStart = (event: DragStartEvent) => {
     const { active } = event
-    const contact = contacts.find(c => c.id === active.id)
-    setActiveContact(contact || null)
+    // Find contact logic here when you add stages
+    setActiveContact(null)
   }
 
   const handleDragEnd = async (event: DragEndEvent) => {
@@ -187,20 +152,7 @@ export default function RecruitmentPage() {
     const contactId = active.id as string
     const newStage = over.id as string
 
-    // Find which column the contact is being dropped into
-    const targetColumn = columns.find(col => col.id === newStage)
-    if (!targetColumn) return
-
-    // Update local state immediately
-    const updatedContacts = contacts.map(contact =>
-      contact.id === contactId
-        ? { ...contact, recruitmentStage: newStage }
-        : contact
-    )
-    setContacts(updatedContacts)
-    organizeContactsIntoColumns(updatedContacts)
-
-    // Update in database
+    // Update logic here when you add stages
     try {
       await fetch(`/api/contacts/${contactId}/stage`, {
         method: 'PATCH',
@@ -209,20 +161,7 @@ export default function RecruitmentPage() {
       })
     } catch (error) {
       console.error('Error updating contact stage:', error)
-      // Revert on error
-      fetchContacts()
     }
-  }
-
-  if (loading) {
-    return (
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold">Recruitment Pipeline</h1>
-          <p className="text-muted-foreground">Loading contacts...</p>
-        </div>
-      </div>
-    )
   }
 
   return (
@@ -230,7 +169,7 @@ export default function RecruitmentPage() {
       <div>
         <h1 className="text-3xl font-bold">Recruitment Pipeline</h1>
         <p className="text-muted-foreground">
-          Drag and drop contacts between stages to manage your recruitment pipeline
+          Add your pipeline stages to get started
         </p>
       </div>
 
@@ -241,16 +180,24 @@ export default function RecruitmentPage() {
         onDragEnd={handleDragEnd}
       >
         <div className="flex gap-4 overflow-x-auto pb-4">
-          {columns.map((column) => (
-            <SortableContext key={column.id} items={column.contacts.map(c => c.id)} strategy={verticalListSortingStrategy}>
-              <div
-                data-column-id={column.id}
-                className="flex-1 min-w-[300px]"
-              >
-                <KanbanColumnComponent column={column} />
-              </div>
-            </SortableContext>
-          ))}
+          {columns.length === 0 ? (
+            <div className="w-full text-center py-12">
+              <p className="text-muted-foreground text-lg">
+                No pipeline stages yet. Add your stages to start managing recruitment.
+              </p>
+            </div>
+          ) : (
+            columns.map((column) => (
+              <SortableContext key={column.id} items={column.contacts.map(c => c.id)} strategy={verticalListSortingStrategy}>
+                <div
+                  data-column-id={column.id}
+                  className="flex-1 min-w-[300px]"
+                >
+                  <KanbanColumnComponent column={column} />
+                </div>
+              </SortableContext>
+            ))
+          )}
         </div>
 
         <DragOverlay>
