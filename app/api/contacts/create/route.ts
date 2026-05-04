@@ -30,9 +30,21 @@ export async function POST(request: Request) {
       apiKey,
     })
 
-    // Then save to our database
-    const contact = await prisma.contact.create({
-      data: {
+    // Then upsert to our database (handles both create and update)
+    const contact = await prisma.contact.upsert({
+      where: { ghlContactId: ghlContact.id },
+      update: {
+        firstName: ghlContact.firstName,
+        lastName: ghlContact.lastName,
+        email: ghlContact.email,
+        phone: ghlContact.phone,
+        tags: ghlContact.tags || [],
+        source: ghlContact.source,
+        subAccount: subAccount || 'Cory Home Team Agent Recruiter',
+        lastUpdated: ghlContact.dateUpdated ? new Date(ghlContact.dateUpdated) : new Date(),
+        customFields: ghlContact.customFields || Prisma.JsonNull,
+      },
+      create: {
         ghlContactId: ghlContact.id,
         firstName: ghlContact.firstName,
         lastName: ghlContact.lastName,
