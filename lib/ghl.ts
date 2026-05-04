@@ -1,4 +1,5 @@
 const GHL_API_BASE = 'https://services.leadconnectorhq.com'
+const GHL_API_VERSION = '2021-07-28'
 
 interface GHLContact {
   id: string
@@ -23,18 +24,23 @@ interface GHLContactsResponse {
 
 export async function fetchGHLContacts(locationId: string, apiKey: string) {
   const contacts: GHLContact[] = []
-  let nextPageUrl: string | undefined = `${GHL_API_BASE}/contacts/?locationId=${locationId}`
+  let skip = 0
+  const limit = 100
+  let hasMore = true
 
   try {
     console.log('Starting GHL contact fetch for location:', locationId)
     
-    while (nextPageUrl) {
-      console.log('Fetching from URL:', nextPageUrl)
+    while (hasMore) {
+      const url = `${GHL_API_BASE}/contacts/?locationId=${locationId}&limit=${limit}&skip=${skip}`
+      console.log('Fetching from URL:', url)
       
-      const response = await fetch(nextPageUrl, {
+      const response = await fetch(url, {
+        method: 'GET',
         headers: {
-          Authorization: `Bearer ${apiKey}`,
-          Version: '2021-07-28',
+          'Authorization': `Bearer ${apiKey}`,
+          'Version': GHL_API_VERSION,
+          'Content-Type': 'application/json',
         },
       })
 
@@ -49,15 +55,17 @@ export async function fetchGHLContacts(locationId: string, apiKey: string) {
       const data: GHLContactsResponse = await response.json()
       console.log('Received data:', { 
         contactCount: data.contacts?.length || 0, 
-        hasNextPage: !!data.meta?.nextPageUrl,
-        total: data.meta?.total 
+        total: data.meta?.total,
+        skip: skip
       })
       
       if (data.contacts && data.contacts.length > 0) {
         contacts.push(...data.contacts)
+        skip += data.contacts.length
+        hasMore = data.contacts.length === limit
+      } else {
+        hasMore = false
       }
-
-      nextPageUrl = data.meta?.nextPageUrl
     }
 
     console.log('Total contacts fetched:', contacts.length)
