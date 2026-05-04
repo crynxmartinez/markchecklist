@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { fetchGHLContacts } from '@/lib/ghl'
 import { prisma } from '@/lib/prisma'
+import { Prisma } from '@prisma/client'
 
 export async function POST() {
   try {
@@ -33,7 +34,7 @@ export async function POST() {
             source: contact.source,
             dateAdded: contact.dateAdded ? new Date(contact.dateAdded) : null,
             lastUpdated: contact.dateUpdated ? new Date(contact.dateUpdated) : null,
-            customFields: contact.customFields || null,
+            customFields: contact.customFields || Prisma.JsonNull,
           },
           create: {
             ghlContactId: contact.id,
@@ -45,7 +46,7 @@ export async function POST() {
             source: contact.source,
             dateAdded: contact.dateAdded ? new Date(contact.dateAdded) : null,
             lastUpdated: contact.dateUpdated ? new Date(contact.dateUpdated) : null,
-            customFields: contact.customFields || null,
+            customFields: contact.customFields || Prisma.JsonNull,
           },
         })
 
