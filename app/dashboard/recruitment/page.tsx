@@ -229,15 +229,20 @@ export default function RecruitmentPage() {
 
   const fetchData = async () => {
     try {
-      const [stagesRes, contactsRes] = await Promise.all([
-        fetch('/api/stages'),
-        fetch('/api/contacts'),
-      ])
-
+      // First fetch stages
+      const stagesRes = await fetch('/api/stages')
       const stagesData = await stagesRes.json()
-      const contactsData = await contactsRes.json()
+      const fetchedStages = stagesData.stages || []
+      setStages(fetchedStages)
 
-      setStages(stagesData.stages || [])
+      // Then fetch only contacts with valid recruitment stages
+      const stageIds = fetchedStages.map((s: PipelineStage) => s.id)
+      const contactsRes = await fetch('/api/contacts/recruitment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ stageIds }),
+      })
+      const contactsData = await contactsRes.json()
       setContacts(contactsData.contacts || [])
     } catch (error) {
       console.error('Error fetching data:', error)
