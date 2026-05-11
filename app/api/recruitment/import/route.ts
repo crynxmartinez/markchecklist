@@ -74,41 +74,43 @@ export async function POST(request: Request) {
     console.log('Fetching opportunities...')
     const opportunities = await fetchGHLOpportunities(locationId, targetPipeline.id, apiKey)
 
-    // Step 5: Update contacts in our database
-    let updated = 0
-    let notFound = 0
+    // Step 5: Group opportunities by stage for batch updates
+    const updatesByStage: Record<string, string[]> = {}
     let noStageMatch = 0
-    const errors: string[] = []
+    let noContact = 0
 
     for (const opp of opportunities) {
-      try {
-        const ghlContactId = opp.contact?.id
-        if (!ghlContactId) {
-          errors.push(`Opportunity ${opp.id} has no contact`)
-          continue
-        }
-
-        // Find our stage ID
-        const ourStageId = stageMapping[opp.pipelineStageId]
-        if (!ourStageId) {
-          noStageMatch++
-          continue
-        }
-
-        // Update contact's recruitment stage
-        const result = await prisma.contact.updateMany({
-          where: { ghlContactId },
-          data: { recruitmentStage: ourStageId }
-        })
-
-        if (result.count > 0) {
-          updated++
-        } else {
-          notFound++
-        }
-      } catch (err) {
-        errors.push(`Error processing opportunity ${opp.id}: ${err}`)
+      const ghlContactId = opp.contact?.id
+      if (!ghlContactId) {
+        noContact++
+        continue
       }
+
+      const ourStageId = stageMapping[opp.pipelineStageId]
+      if (!ourStageId) {
+        noStageMatch++
+        continue
+      }
+
+      if (!updatesByStage[ourStageId]) {
+        updatesByStage[ourStageId] = []
+      }
+      updatesByStage[ourStageId].push(ghlContactId)
+    }
+
+    // Step 6: Batch update contacts by stage (much faster!)
+    console.log('Batch updating contacts...')
+    let updated = 0
+
+    for (const [stageId, ghlContactIds] of Object.entries(updatesByStage)) {
+      const result = await prisma.contact.updateMany({
+        where: { 
+          ghlContactId: { in: ghlContactIds }
+        },
+        data: { recruitmentStage: stageId }
+      })
+      updated += result.count
+      console.log(`Updated ${result.count} contacts to stage ${stageId}`)
     }
 
     return NextResponse.json({
@@ -119,9 +121,8 @@ export async function POST(request: Request) {
       stagesMapped: Object.keys(stageMapping).length,
       totalOpportunities: opportunities.length,
       contactsUpdated: updated,
-      contactsNotFound: notFound,
       noStageMatch,
-      errors: errors.slice(0, 10) // Limit errors shown
+      noContact,
     })
   } catch (error) {
     console.error('Import error:', error)

@@ -382,7 +382,8 @@ export async function fetchGHLPipelines(locationId: string, apiKey: string): Pro
 export async function fetchGHLOpportunities(
   locationId: string, 
   pipelineId: string, 
-  apiKey: string
+  apiKey: string,
+  maxResults: number = 2000 // Limit to avoid timeout
 ): Promise<GHLOpportunity[]> {
   const opportunities: GHLOpportunity[] = []
   const limit = 100
@@ -400,7 +401,7 @@ export async function fetchGHLOpportunities(
     let hasMore = true
     let startAfterId: string | undefined = undefined
     
-    while (hasMore) {
+    while (hasMore && opportunities.length < maxResults) {
       let url = `${GHL_API_BASE}/opportunities/search?${params.toString()}`
       if (startAfterId) {
         url += `&startAfterId=${startAfterId}`
