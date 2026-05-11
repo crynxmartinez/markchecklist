@@ -361,7 +361,7 @@ export default function RecruitmentPage() {
   }
 
   return (
-    <div className="h-[calc(100vh-120px)] flex flex-col overflow-hidden">
+    <div className="h-full flex flex-col overflow-hidden">
       <div className="flex items-center justify-between flex-shrink-0 pb-4">
         <div>
           <h1 className="text-3xl font-bold">Recruitment Pipeline</h1>
@@ -381,7 +381,7 @@ export default function RecruitmentPage() {
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
       >
-        <div className="flex gap-4 overflow-x-auto flex-1 pb-4">
+        <div className="flex gap-4 flex-1 overflow-x-auto overflow-y-hidden">
           {columns.length === 0 ? (
             <div className="w-full text-center py-12">
               <p className="text-muted-foreground text-lg mb-4">

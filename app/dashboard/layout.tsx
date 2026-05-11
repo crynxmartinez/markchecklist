@@ -18,15 +18,15 @@ export default async function DashboardLayout({
   return (
     <SidebarProvider>
       <AppSidebar user={session} />
-      <SidebarInset>
-        <header className="sticky top-0 z-10 flex h-16 shrink-0 items-center gap-2 border-b bg-background px-4">
+      <SidebarInset className="h-screen overflow-hidden">
+        <header className="flex h-16 shrink-0 items-center gap-2 border-b bg-background px-4">
           <SidebarTrigger className="-ml-1" />
           <Separator orientation="vertical" className="mr-2 h-4" />
           <div className="flex-1">
             <h1 className="text-lg font-semibold">CHT System Dashboard</h1>
           </div>
         </header>
-        <main className="flex-1 p-6">{children}</main>
+        <main className="flex-1 overflow-hidden p-6">{children}</main>
       </SidebarInset>
     </SidebarProvider>
   )
