@@ -383,7 +383,7 @@ export async function fetchGHLOpportunities(
   locationId: string, 
   pipelineId: string, 
   apiKey: string,
-  maxResults: number = 2000 // Limit to avoid timeout
+  maxResults: number = 5000 // Increased limit
 ): Promise<GHLOpportunity[]> {
   const opportunities: GHLOpportunity[] = []
   const limit = 100
@@ -391,21 +391,27 @@ export async function fetchGHLOpportunities(
   try {
     console.log('Fetching GHL opportunities for pipeline:', pipelineId)
     
-    // Use query params with underscores as per GHL API spec
-    const params = new URLSearchParams({
-      location_id: locationId,
-      pipeline_id: pipelineId,
-      limit: limit.toString(),
-    })
-    
     let hasMore = true
+    let startAfter: string | undefined = undefined
     let startAfterId: string | undefined = undefined
     
     while (hasMore && opportunities.length < maxResults) {
-      let url = `${GHL_API_BASE}/opportunities/search?${params.toString()}`
-      if (startAfterId) {
-        url += `&startAfterId=${startAfterId}`
+      // Build URL with query params
+      const params = new URLSearchParams({
+        location_id: locationId,
+        pipeline_id: pipelineId,
+        limit: limit.toString(),
+      })
+      
+      // Try both pagination methods
+      if (startAfter) {
+        params.set('startAfter', startAfter)
       }
+      if (startAfterId) {
+        params.set('startAfterId', startAfterId)
+      }
+      
+      const url = `${GHL_API_BASE}/opportunities/search?${params.toString()}`
       
       console.log('Fetching opportunities, current count:', opportunities.length)
       
@@ -427,7 +433,7 @@ export async function fetchGHLOpportunities(
       const data = await response.json()
       const batch = data.opportunities || []
       
-      console.log(`Batch: ${batch.length} opportunities`)
+      console.log(`Batch: ${batch.length} opportunities, meta:`, data.meta)
       
       if (batch.length === 0) {
         hasMore = false
@@ -436,12 +442,16 @@ export async function fetchGHLOpportunities(
 
       opportunities.push(...batch)
       
-      // Check if there are more results
-      if (batch.length < limit) {
-        hasMore = false
-      } else {
-        // Use last opportunity ID for pagination
+      // Check meta for pagination info
+      if (data.meta?.nextPageUrl || data.meta?.startAfter || data.meta?.startAfterId) {
+        startAfter = data.meta.startAfter
+        startAfterId = data.meta.startAfterId
+      } else if (batch.length >= limit) {
+        // Fallback: use last opportunity ID
         startAfterId = batch[batch.length - 1].id
+        startAfter = batch[batch.length - 1].id
+      } else {
+        hasMore = false
       }
     }
 
