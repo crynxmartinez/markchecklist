@@ -31,6 +31,8 @@ export async function GET(
       )
     }
 
+    console.log('Fetching conversations for contact:', contact.ghlContactId)
+
     // Fetch conversations from GHL
     const conversations = await fetchGHLConversations(
       contact.ghlContactId,
@@ -38,11 +40,25 @@ export async function GET(
       apiKey
     )
 
+    console.log('Found conversations:', conversations.length)
+
+    // If no conversations, return early with debug info
+    if (conversations.length === 0) {
+      return NextResponse.json({ 
+        conversations: [],
+        debug: {
+          ghlContactId: contact.ghlContactId,
+          message: 'No conversations found for this contact in GHL'
+        }
+      })
+    }
+
     // Fetch messages for each conversation
     const conversationsWithMessages = await Promise.all(
       conversations.map(async (conv) => {
         try {
           const messages = await fetchGHLMessages(conv.id, apiKey)
+          console.log(`Conversation ${conv.id}: ${messages.length} messages`)
           return {
             ...conv,
             messages: messages.slice(0, 50) // Limit to last 50 messages
@@ -58,7 +74,11 @@ export async function GET(
     )
 
     return NextResponse.json({ 
-      conversations: conversationsWithMessages 
+      conversations: conversationsWithMessages,
+      debug: {
+        ghlContactId: contact.ghlContactId,
+        totalConversations: conversations.length
+      }
     })
   } catch (error) {
     console.error('Error fetching conversations:', error)

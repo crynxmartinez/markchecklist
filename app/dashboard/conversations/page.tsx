@@ -78,6 +78,13 @@ export default function ConversationsPage() {
     try {
       const res = await fetch(`/api/contacts/${contactId}/conversations`)
       const data = await res.json()
+      console.log('Conversations response:', data)
+      if (data.error) {
+        console.error('API Error:', data.error)
+      }
+      if (data.debug) {
+        console.log('Debug info:', data.debug)
+      }
       setConversations(data.conversations || [])
     } catch (error) {
       console.error('Error fetching conversations:', error)
