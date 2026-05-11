@@ -126,9 +126,9 @@ function DroppableColumn({ column, onEdit, onDelete }: {
   })
 
   return (
-    <div className="flex-shrink-0 w-[300px]">
-      <Card className={isOver ? 'ring-2 ring-primary' : ''}>
-        <CardHeader className="pb-3">
+    <div className="flex-shrink-0 w-[300px] h-full">
+      <Card className={`h-full flex flex-col ${isOver ? 'ring-2 ring-primary' : ''}`}>
+        <CardHeader className="pb-3 flex-shrink-0">
           <CardTitle className="text-base flex items-center justify-between">
             <div className="flex items-center gap-2">
               <div 
@@ -162,7 +162,7 @@ function DroppableColumn({ column, onEdit, onDelete }: {
         </CardHeader>
         <CardContent 
           ref={setNodeRef}
-          className="min-h-[400px] max-h-[calc(100vh-300px)] overflow-y-auto"
+          className="flex-1 overflow-y-auto"
         >
           <SortableContext items={column.contacts.map(c => c.id)} strategy={verticalListSortingStrategy}>
             {column.contacts.map((contact) => (
@@ -361,8 +361,8 @@ export default function RecruitmentPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="h-[calc(100vh-120px)] flex flex-col overflow-hidden">
+      <div className="flex items-center justify-between flex-shrink-0 pb-4">
         <div>
           <h1 className="text-3xl font-bold">Recruitment Pipeline</h1>
           <p className="text-muted-foreground">
@@ -381,7 +381,7 @@ export default function RecruitmentPage() {
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
       >
-        <div className="flex gap-4 overflow-x-auto pb-4">
+        <div className="flex gap-4 overflow-x-auto flex-1 pb-4">
           {columns.length === 0 ? (
             <div className="w-full text-center py-12">
               <p className="text-muted-foreground text-lg mb-4">
