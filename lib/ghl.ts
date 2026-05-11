@@ -385,48 +385,63 @@ export async function fetchGHLOpportunities(
   apiKey: string
 ): Promise<GHLOpportunity[]> {
   const opportunities: GHLOpportunity[] = []
-  let page = 1
   const limit = 100
 
   try {
     console.log('Fetching GHL opportunities for pipeline:', pipelineId)
     
-    while (true) {
-      const url = `${GHL_API_BASE}/opportunities/search?locationId=${locationId}&pipelineId=${pipelineId}&limit=${limit}&page=${page}`
+    // Use query params with underscores as per GHL API spec
+    const params = new URLSearchParams({
+      location_id: locationId,
+      pipeline_id: pipelineId,
+      limit: limit.toString(),
+    })
+    
+    let hasMore = true
+    let startAfterId: string | undefined = undefined
+    
+    while (hasMore) {
+      let url = `${GHL_API_BASE}/opportunities/search?${params.toString()}`
+      if (startAfterId) {
+        url += `&startAfterId=${startAfterId}`
+      }
       
-      console.log('Fetching page:', page)
+      console.log('Fetching opportunities, current count:', opportunities.length)
       
       const response = await fetch(url, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${apiKey}`,
           'Version': GHL_API_VERSION,
-          'Content-Type': 'application/json',
+          'Accept': 'application/json',
         },
       })
 
       if (!response.ok) {
         const errorText = await response.text()
         console.error('GHL opportunities error:', errorText)
-        throw new Error(`Failed to fetch opportunities: ${response.status} ${response.statusText}`)
+        throw new Error(`Failed to fetch opportunities: ${response.status} ${response.statusText} - ${errorText}`)
       }
 
       const data = await response.json()
       const batch = data.opportunities || []
       
-      console.log(`Page ${page}: ${batch.length} opportunities`)
+      console.log(`Batch: ${batch.length} opportunities`)
       
       if (batch.length === 0) {
+        hasMore = false
         break
       }
 
       opportunities.push(...batch)
       
+      // Check if there are more results
       if (batch.length < limit) {
-        break
+        hasMore = false
+      } else {
+        // Use last opportunity ID for pagination
+        startAfterId = batch[batch.length - 1].id
       }
-      
-      page++
     }
 
     console.log('Total opportunities fetched:', opportunities.length)
