@@ -136,7 +136,7 @@ export async function POST(request: Request) {
   }
 }
 
-// GET endpoint to preview pipelines
+// GET endpoint to preview pipelines and debug
 export async function GET() {
   try {
     const apiKey = process.env.GHL_API_KEY
@@ -154,13 +154,39 @@ export async function GET() {
       orderBy: { order: 'asc' }
     })
 
+    // Debug: Check how many contacts have recruitmentStage set
+    const contactsWithStage = await prisma.contact.count({
+      where: {
+        recruitmentStage: { not: null }
+      }
+    })
+
+    const totalContacts = await prisma.contact.count()
+
+    // Get sample of contacts with stages
+    const sampleContacts = await prisma.contact.findMany({
+      where: { recruitmentStage: { not: null } },
+      take: 5,
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        recruitmentStage: true,
+      }
+    })
+
     return NextResponse.json({
       pipelines: pipelines.map(p => ({
         id: p.id,
         name: p.name,
         stages: p.stages.map(s => s.name)
       })),
-      ourStages: ourStages.map(s => s.name)
+      ourStages: ourStages.map(s => ({ id: s.id, name: s.name })),
+      debug: {
+        totalContacts,
+        contactsWithStage,
+        sampleContacts
+      }
     })
   } catch (error) {
     console.error('Error fetching pipelines:', error)
