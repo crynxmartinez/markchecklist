@@ -194,6 +194,16 @@ export default function RecruitmentPage() {
   const [stageColor, setStageColor] = useState('#6366f1')
   const [saving, setSaving] = useState(false)
   const [importing, setImporting] = useState(false)
+  const [importDialogOpen, setImportDialogOpen] = useState(false)
+  const [importResult, setImportResult] = useState<{
+    success: boolean
+    pipeline?: string
+    totalOpportunities?: number
+    contactsUpdated?: number
+    stagesMapped?: number
+    error?: string
+    availablePipelines?: string[]
+  } | null>(null)
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -350,12 +360,15 @@ export default function RecruitmentPage() {
     }
   }
 
-  const handleImportFromGHL = async () => {
-    if (!confirm('Import opportunities from GHL? This will update contacts to their pipeline stages.')) {
-      return
-    }
+  const openImportDialog = () => {
+    setImportResult(null)
+    setImportDialogOpen(true)
+  }
 
+  const handleImportFromGHL = async () => {
     setImporting(true)
+    setImportResult(null)
+    
     try {
       const response = await fetch('/api/recruitment/import', {
         method: 'POST',
@@ -364,16 +377,14 @@ export default function RecruitmentPage() {
       })
 
       const data = await response.json()
+      setImportResult(data)
 
       if (data.success) {
-        alert(`Import complete!\n\nPipeline: ${data.pipeline}\nOpportunities: ${data.totalOpportunities}\nContacts updated: ${data.contactsUpdated}\nStages mapped: ${data.stagesMapped}`)
         await fetchData()
-      } else {
-        alert(`Import failed: ${data.error}\n\n${data.availablePipelines ? 'Available pipelines: ' + data.availablePipelines.join(', ') : ''}`)
       }
     } catch (error) {
       console.error('Import error:', error)
-      alert('Failed to import from GHL')
+      setImportResult({ success: false, error: 'Failed to connect to GHL' })
     } finally {
       setImporting(false)
     }
@@ -400,9 +411,9 @@ export default function RecruitmentPage() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={handleImportFromGHL} disabled={importing}>
+          <Button variant="outline" onClick={openImportDialog}>
             <Download className="mr-2 h-4 w-4" />
-            {importing ? 'Importing...' : 'Import from GHL'}
+            Import from GHL
           </Button>
           <Button onClick={openCreateStageDialog}>
             <Plus className="mr-2 h-4 w-4" />
@@ -512,6 +523,123 @@ export default function RecruitmentPage() {
             <Button onClick={handleSaveStage} disabled={saving || !stageName.trim()}>
               {saving ? 'Saving...' : editingStage ? 'Update Stage' : 'Create Stage'}
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Import Dialog */}
+      <Dialog open={importDialogOpen} onOpenChange={setImportDialogOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Import from GoHighLevel</DialogTitle>
+            <DialogDescription>
+              Import opportunities from your GHL pipeline to populate contacts in stages
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="py-4">
+            {!importResult && !importing && (
+              <div className="text-center space-y-4">
+                <div className="mx-auto w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center">
+                  <Download className="h-8 w-8 text-blue-600" />
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">
+                    This will fetch opportunities from your GHL &quot;CHT Group Agent Recruiter&quot; pipeline 
+                    and update contacts to their corresponding stages.
+                  </p>
+                  <p className="text-sm text-muted-foreground mt-2">
+                    <strong>Note:</strong> Stage names must match between GHL and your stages.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {importing && (
+              <div className="text-center space-y-4">
+                <div className="mx-auto w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center animate-pulse">
+                  <Download className="h-8 w-8 text-blue-600" />
+                </div>
+                <div>
+                  <p className="font-medium">Importing from GHL...</p>
+                  <p className="text-sm text-muted-foreground">This may take a moment</p>
+                </div>
+              </div>
+            )}
+
+            {importResult && (
+              <div className="space-y-4">
+                {importResult.success ? (
+                  <>
+                    <div className="mx-auto w-16 h-16 bg-green-100 rounded-full flex items-center justify-center">
+                      <svg className="h-8 w-8 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                    </div>
+                    <div className="text-center">
+                      <p className="font-medium text-green-600">Import Successful!</p>
+                    </div>
+                    <div className="bg-muted rounded-lg p-4 space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Pipeline</span>
+                        <span className="font-medium">{importResult.pipeline}</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Total Opportunities</span>
+                        <span className="font-medium">{importResult.totalOpportunities}</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Contacts Updated</span>
+                        <span className="font-medium text-green-600">{importResult.contactsUpdated}</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Stages Mapped</span>
+                        <span className="font-medium">{importResult.stagesMapped}</span>
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="mx-auto w-16 h-16 bg-red-100 rounded-full flex items-center justify-center">
+                      <svg className="h-8 w-8 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </div>
+                    <div className="text-center">
+                      <p className="font-medium text-red-600">Import Failed</p>
+                      <p className="text-sm text-muted-foreground mt-1">{importResult.error}</p>
+                    </div>
+                    {importResult.availablePipelines && (
+                      <div className="bg-muted rounded-lg p-4">
+                        <p className="text-sm font-medium mb-2">Available Pipelines:</p>
+                        <ul className="text-sm text-muted-foreground space-y-1">
+                          {importResult.availablePipelines.map((p, i) => (
+                            <li key={i}>• {p}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            {!importResult ? (
+              <>
+                <Button variant="outline" onClick={() => setImportDialogOpen(false)} disabled={importing}>
+                  Cancel
+                </Button>
+                <Button onClick={handleImportFromGHL} disabled={importing}>
+                  {importing ? 'Importing...' : 'Start Import'}
+                </Button>
+              </>
+            ) : (
+              <Button onClick={() => setImportDialogOpen(false)}>
+                Close
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
