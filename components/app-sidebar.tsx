@@ -11,6 +11,7 @@ import {
   LogOut,
   User,
   ChevronUp,
+  MessageSquare,
 } from 'lucide-react'
 
 import {
@@ -46,6 +47,12 @@ const menuItems = [
     icon: Users,
     url: '/dashboard/recruitment',
     module: 'RECRUITMENT',
+  },
+  {
+    title: 'Conversations',
+    icon: MessageSquare,
+    url: '/dashboard/conversations',
+    module: null,
   },
   {
     title: 'Truck Management',
