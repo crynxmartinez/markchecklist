@@ -318,3 +318,121 @@ export async function deleteGHLContact(contactId: string, apiKey: string) {
     throw error
   }
 }
+
+interface GHLPipelineStage {
+  id: string
+  name: string
+  position: number
+}
+
+interface GHLPipeline {
+  id: string
+  name: string
+  stages: GHLPipelineStage[]
+  locationId: string
+}
+
+interface GHLOpportunity {
+  id: string
+  name: string
+  monetaryValue?: number
+  pipelineId: string
+  pipelineStageId: string
+  status: string
+  contact: {
+    id: string
+    name?: string
+    email?: string
+    phone?: string
+    tags?: string[]
+  }
+  notes?: string[]
+  createdAt?: string
+  updatedAt?: string
+}
+
+export async function fetchGHLPipelines(locationId: string, apiKey: string): Promise<GHLPipeline[]> {
+  try {
+    console.log('Fetching GHL pipelines for location:', locationId)
+    
+    const response = await fetch(`${GHL_API_BASE}/opportunities/pipelines?locationId=${locationId}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Version': GHL_API_VERSION,
+        'Content-Type': 'application/json',
+      },
+    })
+
+    if (!response.ok) {
+      const errorText = await response.text()
+      console.error('GHL pipelines error:', errorText)
+      throw new Error(`Failed to fetch pipelines: ${response.status} ${response.statusText}`)
+    }
+
+    const data = await response.json()
+    console.log('Pipelines fetched:', data.pipelines?.length || 0)
+    return data.pipelines || []
+  } catch (error) {
+    console.error('Error fetching GHL pipelines:', error)
+    throw error
+  }
+}
+
+export async function fetchGHLOpportunities(
+  locationId: string, 
+  pipelineId: string, 
+  apiKey: string
+): Promise<GHLOpportunity[]> {
+  const opportunities: GHLOpportunity[] = []
+  let page = 1
+  const limit = 100
+
+  try {
+    console.log('Fetching GHL opportunities for pipeline:', pipelineId)
+    
+    while (true) {
+      const url = `${GHL_API_BASE}/opportunities/search?locationId=${locationId}&pipelineId=${pipelineId}&limit=${limit}&page=${page}`
+      
+      console.log('Fetching page:', page)
+      
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Version': GHL_API_VERSION,
+          'Content-Type': 'application/json',
+        },
+      })
+
+      if (!response.ok) {
+        const errorText = await response.text()
+        console.error('GHL opportunities error:', errorText)
+        throw new Error(`Failed to fetch opportunities: ${response.status} ${response.statusText}`)
+      }
+
+      const data = await response.json()
+      const batch = data.opportunities || []
+      
+      console.log(`Page ${page}: ${batch.length} opportunities`)
+      
+      if (batch.length === 0) {
+        break
+      }
+
+      opportunities.push(...batch)
+      
+      if (batch.length < limit) {
+        break
+      }
+      
+      page++
+    }
+
+    console.log('Total opportunities fetched:', opportunities.length)
+    return opportunities
+  } catch (error) {
+    console.error('Error fetching GHL opportunities:', error)
+    throw error
+  }
+}

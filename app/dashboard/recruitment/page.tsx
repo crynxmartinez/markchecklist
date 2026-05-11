@@ -18,7 +18,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { Mail, Phone, GripVertical, Plus, Trash2, Edit, MoreVertical } from 'lucide-react'
+import { Mail, Phone, GripVertical, Plus, Trash2, Edit, MoreVertical, Download } from 'lucide-react'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -193,6 +193,7 @@ export default function RecruitmentPage() {
   const [stageName, setStageName] = useState('')
   const [stageColor, setStageColor] = useState('#6366f1')
   const [saving, setSaving] = useState(false)
+  const [importing, setImporting] = useState(false)
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -349,6 +350,35 @@ export default function RecruitmentPage() {
     }
   }
 
+  const handleImportFromGHL = async () => {
+    if (!confirm('Import opportunities from GHL? This will update contacts to their pipeline stages.')) {
+      return
+    }
+
+    setImporting(true)
+    try {
+      const response = await fetch('/api/recruitment/import', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pipelineName: 'recruiter' }),
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        alert(`Import complete!\n\nPipeline: ${data.pipeline}\nOpportunities: ${data.totalOpportunities}\nContacts updated: ${data.contactsUpdated}\nStages mapped: ${data.stagesMapped}`)
+        await fetchData()
+      } else {
+        alert(`Import failed: ${data.error}\n\n${data.availablePipelines ? 'Available pipelines: ' + data.availablePipelines.join(', ') : ''}`)
+      }
+    } catch (error) {
+      console.error('Import error:', error)
+      alert('Failed to import from GHL')
+    } finally {
+      setImporting(false)
+    }
+  }
+
   if (loading) {
     return (
       <div className="space-y-6">
@@ -369,10 +399,16 @@ export default function RecruitmentPage() {
             Drag and drop contacts between stages
           </p>
         </div>
-        <Button onClick={openCreateStageDialog}>
-          <Plus className="mr-2 h-4 w-4" />
-          Add Stage
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={handleImportFromGHL} disabled={importing}>
+            <Download className="mr-2 h-4 w-4" />
+            {importing ? 'Importing...' : 'Import from GHL'}
+          </Button>
+          <Button onClick={openCreateStageDialog}>
+            <Plus className="mr-2 h-4 w-4" />
+            Add Stage
+          </Button>
+        </div>
       </div>
 
       <DndContext
