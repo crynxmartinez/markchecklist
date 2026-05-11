@@ -325,6 +325,110 @@ interface GHLPipelineStage {
   position: number
 }
 
+// Conversations interfaces
+export interface GHLConversation {
+  id: string
+  contactId: string
+  locationId: string
+  lastMessageBody?: string
+  lastMessageDate?: string
+  lastMessageType?: string
+  type: string
+  unreadCount?: number
+  fullName?: string
+  contactName?: string
+  email?: string
+  phone?: string
+}
+
+export interface GHLMessage {
+  id: string
+  conversationId: string
+  body: string
+  type: number // 1 = SMS, 2 = Email, etc.
+  direction: string // 'inbound' or 'outbound'
+  status: string
+  dateAdded: string
+  contentType?: string
+  attachments?: string[]
+  meta?: {
+    email?: {
+      subject?: string
+      from?: string
+      to?: string[]
+    }
+  }
+}
+
+export async function fetchGHLConversations(
+  contactId: string,
+  locationId: string,
+  apiKey: string
+): Promise<GHLConversation[]> {
+  try {
+    console.log('Fetching GHL conversations for contact:', contactId)
+    
+    const response = await fetch(
+      `${GHL_API_BASE}/conversations/search?locationId=${locationId}&contactId=${contactId}`,
+      {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Version': GHL_API_VERSION,
+          'Accept': 'application/json',
+        },
+      }
+    )
+
+    if (!response.ok) {
+      const errorText = await response.text()
+      console.error('GHL conversations error:', errorText)
+      throw new Error(`Failed to fetch conversations: ${response.status} ${response.statusText}`)
+    }
+
+    const data = await response.json()
+    console.log('Conversations fetched:', data.conversations?.length || 0)
+    return data.conversations || []
+  } catch (error) {
+    console.error('Error fetching GHL conversations:', error)
+    throw error
+  }
+}
+
+export async function fetchGHLMessages(
+  conversationId: string,
+  apiKey: string
+): Promise<GHLMessage[]> {
+  try {
+    console.log('Fetching GHL messages for conversation:', conversationId)
+    
+    const response = await fetch(
+      `${GHL_API_BASE}/conversations/${conversationId}/messages`,
+      {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Version': GHL_API_VERSION,
+          'Accept': 'application/json',
+        },
+      }
+    )
+
+    if (!response.ok) {
+      const errorText = await response.text()
+      console.error('GHL messages error:', errorText)
+      throw new Error(`Failed to fetch messages: ${response.status} ${response.statusText}`)
+    }
+
+    const data = await response.json()
+    console.log('Messages fetched:', data.messages?.length || 0)
+    return data.messages || []
+  } catch (error) {
+    console.error('Error fetching GHL messages:', error)
+    throw error
+  }
+}
+
 interface GHLPipeline {
   id: string
   name: string

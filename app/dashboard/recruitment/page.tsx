@@ -19,7 +19,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { Mail, Phone, GripVertical, Plus, Trash2, Edit, MoreVertical, Download, CheckCircle2, Circle, Calendar, FileText, ListTodo, User } from 'lucide-react'
+import { Mail, Phone, GripVertical, Plus, Trash2, Edit, MoreVertical, Download, CheckCircle2, Circle, Calendar, FileText, ListTodo, User, MessageSquare, Send } from 'lucide-react'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -54,6 +54,28 @@ interface Note {
   id: string
   content: string
   createdAt: string
+}
+
+interface Message {
+  id: string
+  body: string
+  type: number
+  direction: string
+  status: string
+  dateAdded: string
+  meta?: {
+    email?: {
+      subject?: string
+    }
+  }
+}
+
+interface Conversation {
+  id: string
+  type: string
+  lastMessageBody?: string
+  lastMessageDate?: string
+  messages: Message[]
 }
 
 interface PipelineStage {
@@ -232,11 +254,13 @@ export default function RecruitmentPage() {
   } | null>(null)
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null)
   const [contactDialogOpen, setContactDialogOpen] = useState(false)
-  const [activeTab, setActiveTab] = useState<'details' | 'tasks' | 'notes'>('details')
+  const [activeTab, setActiveTab] = useState<'details' | 'tasks' | 'notes' | 'conversations'>('details')
   const [tasks, setTasks] = useState<Task[]>([])
   const [notes, setNotes] = useState<Note[]>([])
+  const [conversations, setConversations] = useState<Conversation[]>([])
   const [loadingTasks, setLoadingTasks] = useState(false)
   const [loadingNotes, setLoadingNotes] = useState(false)
+  const [loadingConversations, setLoadingConversations] = useState(false)
   const [newTaskTitle, setNewTaskTitle] = useState('')
   const [newTaskDueDate, setNewTaskDueDate] = useState('')
   const [newNoteContent, setNewNoteContent] = useState('')
@@ -436,6 +460,7 @@ export default function RecruitmentPage() {
     setActiveTab('details')
     setTasks([])
     setNotes([])
+    setConversations([])
     setNewTaskTitle('')
     setNewTaskDueDate('')
     setNewNoteContent('')
@@ -468,6 +493,19 @@ export default function RecruitmentPage() {
       console.error('Error fetching notes:', error)
     } finally {
       setLoadingNotes(false)
+    }
+  }
+
+  const fetchConversations = async (contactId: string) => {
+    setLoadingConversations(true)
+    try {
+      const res = await fetch(`/api/contacts/${contactId}/conversations`)
+      const data = await res.json()
+      setConversations(data.conversations || [])
+    } catch (error) {
+      console.error('Error fetching conversations:', error)
+    } finally {
+      setLoadingConversations(false)
     }
   }
 
@@ -836,6 +874,20 @@ export default function RecruitmentPage() {
                   <Badge variant="secondary" className="ml-auto text-xs">{notes.length}</Badge>
                 )}
               </button>
+              <button
+                onClick={() => {
+                  setActiveTab('conversations')
+                  if (selectedContact && conversations.length === 0) {
+                    fetchConversations(selectedContact.id)
+                  }
+                }}
+                className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm text-left transition-colors ${
+                  activeTab === 'conversations' ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'
+                }`}
+              >
+                <MessageSquare className="h-4 w-4" />
+                Conversations
+              </button>
             </div>
 
             {/* Right Content */}
@@ -1035,6 +1087,72 @@ export default function RecruitmentPage() {
                             <p className="text-xs text-muted-foreground mt-2">
                               {new Date(note.createdAt).toLocaleString()}
                             </p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Conversations Tab */}
+                {activeTab === 'conversations' && (
+                  <div className="space-y-4">
+                    {loadingConversations ? (
+                      <p className="text-sm text-muted-foreground text-center py-4">Loading conversations from GHL...</p>
+                    ) : conversations.length === 0 ? (
+                      <p className="text-sm text-muted-foreground text-center py-8">No conversations found</p>
+                    ) : (
+                      <div className="space-y-4">
+                        {conversations.map((conv) => (
+                          <div key={conv.id} className="border rounded-lg overflow-hidden">
+                            <div className="bg-muted px-3 py-2 text-xs font-medium flex items-center gap-2">
+                              <MessageSquare className="h-3 w-3" />
+                              {conv.type === 'TYPE_EMAIL' ? 'Email' : conv.type === 'TYPE_SMS' ? 'SMS' : conv.type}
+                              {conv.lastMessageDate && (
+                                <span className="text-muted-foreground ml-auto">
+                                  Last: {new Date(conv.lastMessageDate).toLocaleDateString()}
+                                </span>
+                              )}
+                            </div>
+                            <div className="max-h-[300px] overflow-y-auto">
+                              {conv.messages.length === 0 ? (
+                                <p className="text-sm text-muted-foreground text-center py-4">No messages</p>
+                              ) : (
+                                <div className="p-3 space-y-3">
+                                  {conv.messages.map((msg) => (
+                                    <div
+                                      key={msg.id}
+                                      className={`flex ${msg.direction === 'outbound' ? 'justify-end' : 'justify-start'}`}
+                                    >
+                                      <div
+                                        className={`max-w-[80%] rounded-lg px-3 py-2 ${
+                                          msg.direction === 'outbound'
+                                            ? 'bg-primary text-primary-foreground'
+                                            : 'bg-muted'
+                                        }`}
+                                      >
+                                        {msg.meta?.email?.subject && (
+                                          <p className="text-xs font-medium mb-1 opacity-80">
+                                            Subject: {msg.meta.email.subject}
+                                          </p>
+                                        )}
+                                        <p className="text-sm whitespace-pre-wrap">{msg.body}</p>
+                                        <p className={`text-xs mt-1 ${
+                                          msg.direction === 'outbound' ? 'opacity-70' : 'text-muted-foreground'
+                                        }`}>
+                                          {new Date(msg.dateAdded).toLocaleString()}
+                                          {msg.direction === 'outbound' && (
+                                            <span className="ml-2">
+                                              {msg.status === 'sent' ? '✓' : msg.status === 'delivered' ? '✓✓' : ''}
+                                            </span>
+                                          )}
+                                        </p>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
                           </div>
                         ))}
                       </div>
