@@ -433,24 +433,36 @@ export async function fetchGHLOpportunities(
       const data = await response.json()
       const batch = data.opportunities || []
       
-      console.log(`Batch: ${batch.length} opportunities, meta:`, data.meta)
+      console.log(`Batch: ${batch.length} opportunities`)
+      console.log('Response meta:', JSON.stringify(data.meta))
+      console.log('Response keys:', Object.keys(data))
       
       if (batch.length === 0) {
+        console.log('No more opportunities, stopping')
         hasMore = false
         break
       }
 
       opportunities.push(...batch)
       
-      // Check meta for pagination info
-      if (data.meta?.nextPageUrl || data.meta?.startAfter || data.meta?.startAfterId) {
-        startAfter = data.meta.startAfter
-        startAfterId = data.meta.startAfterId
+      // Check various pagination methods
+      const meta = data.meta || {}
+      const nextPage = meta.nextPage || meta.nextPageUrl || meta.next
+      const nextCursor = meta.startAfter || meta.startAfterId || meta.cursor || meta.nextCursor
+      
+      console.log('Next page info:', { nextPage, nextCursor, batchLength: batch.length })
+      
+      if (nextCursor) {
+        startAfter = nextCursor
+        startAfterId = nextCursor
       } else if (batch.length >= limit) {
-        // Fallback: use last opportunity ID
-        startAfterId = batch[batch.length - 1].id
-        startAfter = batch[batch.length - 1].id
+        // Fallback: use last opportunity ID for cursor
+        const lastId = batch[batch.length - 1].id
+        console.log('Using last ID as cursor:', lastId)
+        startAfterId = lastId
+        startAfter = lastId
       } else {
+        console.log('Batch smaller than limit, no more pages')
         hasMore = false
       }
     }
