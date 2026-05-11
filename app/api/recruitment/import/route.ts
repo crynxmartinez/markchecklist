@@ -155,17 +155,26 @@ export async function GET() {
     })
 
     // Debug: Check how many contacts have recruitmentStage set
-    const contactsWithStage = await prisma.contact.count({
+    const totalContacts = await prisma.contact.count()
+
+    // Count contacts per stage
+    const stageIds = ourStages.map(s => s.id)
+    const contactsWithValidStage = await prisma.contact.count({
       where: {
-        recruitmentStage: { not: null }
+        recruitmentStage: { in: stageIds }
       }
     })
 
-    const totalContacts = await prisma.contact.count()
+    const contactsWithOldValue = await prisma.contact.count({
+      where: {
+        recruitmentStage: { notIn: [...stageIds, ''] },
+        NOT: { recruitmentStage: null }
+      }
+    })
 
-    // Get sample of contacts with stages
+    // Get sample of contacts with VALID stages
     const sampleContacts = await prisma.contact.findMany({
-      where: { recruitmentStage: { not: null } },
+      where: { recruitmentStage: { in: stageIds } },
       take: 5,
       select: {
         id: true,
@@ -184,7 +193,8 @@ export async function GET() {
       ourStages: ourStages.map(s => ({ id: s.id, name: s.name })),
       debug: {
         totalContacts,
-        contactsWithStage,
+        contactsWithValidStage,
+        contactsWithOldValue,
         sampleContacts
       }
     })
