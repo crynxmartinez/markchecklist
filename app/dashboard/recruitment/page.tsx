@@ -52,7 +52,7 @@ interface KanbanColumn {
   contacts: Contact[]
 }
 
-function ContactCard({ contact }: { contact: Contact }) {
+function ContactCard({ contact, onClick }: { contact: Contact; onClick?: () => void }) {
   const {
     attributes,
     listeners,
@@ -68,17 +68,24 @@ function ContactCard({ contact }: { contact: Contact }) {
     opacity: isDragging ? 0.5 : 1,
   }
 
+  const truncateTag = (tag: string, maxLength: number = 20) => {
+    return tag.length > maxLength ? tag.substring(0, maxLength) + '...' : tag
+  }
+
   return (
     <div
       ref={setNodeRef}
       style={style}
-      className="bg-white rounded-lg border p-3 mb-2 cursor-move hover:shadow-md transition-shadow"
+      className="bg-white rounded-lg border p-3 mb-2 hover:shadow-md transition-shadow"
     >
       <div className="flex items-start gap-2">
-        <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing mt-1">
+        <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing mt-1 flex-shrink-0">
           <GripVertical className="h-4 w-4 text-muted-foreground" />
         </div>
-        <div className="flex-1 min-w-0">
+        <div 
+          className="flex-1 min-w-0 cursor-pointer" 
+          onClick={onClick}
+        >
           <h4 className="font-medium text-sm truncate">
             {contact.firstName || contact.lastName
               ? `${contact.firstName || ''} ${contact.lastName || ''}`.trim()
@@ -86,21 +93,21 @@ function ContactCard({ contact }: { contact: Contact }) {
           </h4>
           {contact.email && (
             <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
-              <Mail className="h-3 w-3" />
+              <Mail className="h-3 w-3 flex-shrink-0" />
               <span className="truncate">{contact.email}</span>
             </div>
           )}
           {contact.phone && (
             <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
-              <Phone className="h-3 w-3" />
+              <Phone className="h-3 w-3 flex-shrink-0" />
               <span>{contact.phone}</span>
             </div>
           )}
           {contact.tags && contact.tags.length > 0 && (
-            <div className="flex gap-1 mt-2 flex-wrap">
+            <div className="flex gap-1 mt-2 flex-wrap overflow-hidden max-h-12">
               {contact.tags.slice(0, 2).map((tag, idx) => (
-                <Badge key={idx} variant="secondary" className="text-xs">
-                  {tag}
+                <Badge key={idx} variant="secondary" className="text-xs truncate max-w-[120px]" title={tag}>
+                  {truncateTag(tag)}
                 </Badge>
               ))}
               {contact.tags.length > 2 && (
@@ -116,10 +123,11 @@ function ContactCard({ contact }: { contact: Contact }) {
   )
 }
 
-function DroppableColumn({ column, onEdit, onDelete }: { 
+function DroppableColumn({ column, onEdit, onDelete, onContactClick }: { 
   column: KanbanColumn
   onEdit: (id: string, name: string, color: string) => void
-  onDelete: (id: string) => void 
+  onDelete: (id: string) => void
+  onContactClick: (contact: Contact) => void
 }) {
   const { setNodeRef, isOver } = useDroppable({
     id: column.id,
@@ -166,7 +174,7 @@ function DroppableColumn({ column, onEdit, onDelete }: {
         >
           <SortableContext items={column.contacts.map(c => c.id)} strategy={verticalListSortingStrategy}>
             {column.contacts.map((contact) => (
-              <ContactCard key={contact.id} contact={contact} />
+              <ContactCard key={contact.id} contact={contact} onClick={() => onContactClick(contact)} />
             ))}
             {column.contacts.length === 0 && (
               <div className="text-center text-muted-foreground text-sm py-8 border-2 border-dashed rounded-lg">
@@ -204,6 +212,8 @@ export default function RecruitmentPage() {
     error?: string
     availablePipelines?: string[]
   } | null>(null)
+  const [selectedContact, setSelectedContact] = useState<Contact | null>(null)
+  const [contactDialogOpen, setContactDialogOpen] = useState(false)
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -395,6 +405,11 @@ export default function RecruitmentPage() {
     }
   }
 
+  const handleContactClick = (contact: Contact) => {
+    setSelectedContact(contact)
+    setContactDialogOpen(true)
+  }
+
   if (loading) {
     return (
       <div className="space-y-6">
@@ -451,6 +466,7 @@ export default function RecruitmentPage() {
                 column={column}
                 onEdit={openEditStageDialog}
                 onDelete={handleDeleteStage}
+                onContactClick={handleContactClick}
               />
             ))
           )}
@@ -645,6 +661,82 @@ export default function RecruitmentPage() {
                 Close
               </Button>
             )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Contact Detail Dialog */}
+      <Dialog open={contactDialogOpen} onOpenChange={setContactDialogOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Contact Details</DialogTitle>
+          </DialogHeader>
+          
+          {selectedContact && (
+            <div className="space-y-4 py-4">
+              <div className="flex items-center gap-4">
+                <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center">
+                  <span className="text-2xl font-semibold text-primary">
+                    {(selectedContact.firstName?.[0] || selectedContact.lastName?.[0] || '?').toUpperCase()}
+                  </span>
+                </div>
+                <div>
+                  <h3 className="text-xl font-semibold">
+                    {selectedContact.firstName || selectedContact.lastName
+                      ? `${selectedContact.firstName || ''} ${selectedContact.lastName || ''}`.trim()
+                      : 'No Name'}
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    {stages.find(s => s.id === selectedContact.recruitmentStage)?.name || 'No Stage'}
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                {selectedContact.email && (
+                  <div className="flex items-center gap-3 p-3 bg-muted rounded-lg">
+                    <Mail className="h-5 w-5 text-muted-foreground" />
+                    <div>
+                      <p className="text-xs text-muted-foreground">Email</p>
+                      <a href={`mailto:${selectedContact.email}`} className="text-sm hover:underline">
+                        {selectedContact.email}
+                      </a>
+                    </div>
+                  </div>
+                )}
+                
+                {selectedContact.phone && (
+                  <div className="flex items-center gap-3 p-3 bg-muted rounded-lg">
+                    <Phone className="h-5 w-5 text-muted-foreground" />
+                    <div>
+                      <p className="text-xs text-muted-foreground">Phone</p>
+                      <a href={`tel:${selectedContact.phone}`} className="text-sm hover:underline">
+                        {selectedContact.phone}
+                      </a>
+                    </div>
+                  </div>
+                )}
+
+                {selectedContact.tags && selectedContact.tags.length > 0 && (
+                  <div className="p-3 bg-muted rounded-lg">
+                    <p className="text-xs text-muted-foreground mb-2">Tags</p>
+                    <div className="flex flex-wrap gap-1">
+                      {selectedContact.tags.map((tag, idx) => (
+                        <Badge key={idx} variant="secondary" className="text-xs">
+                          {tag}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setContactDialogOpen(false)}>
+              Close
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
