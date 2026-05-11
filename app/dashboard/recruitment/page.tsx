@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
 import {
   Dialog,
   DialogContent,
@@ -18,7 +19,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { Mail, Phone, GripVertical, Plus, Trash2, Edit, MoreVertical, Download } from 'lucide-react'
+import { Mail, Phone, GripVertical, Plus, Trash2, Edit, MoreVertical, Download, CheckCircle2, Circle, Calendar, FileText, ListTodo, User } from 'lucide-react'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -34,8 +35,25 @@ interface Contact {
   email?: string
   phone?: string
   tags: string[]
+  source?: string
   recruitmentStage?: string
   subAccount?: string
+  dateAdded?: string
+}
+
+interface Task {
+  id: string
+  title: string
+  description?: string
+  dueDate?: string
+  completed: boolean
+  createdAt: string
+}
+
+interface Note {
+  id: string
+  content: string
+  createdAt: string
 }
 
 interface PipelineStage {
@@ -214,6 +232,14 @@ export default function RecruitmentPage() {
   } | null>(null)
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null)
   const [contactDialogOpen, setContactDialogOpen] = useState(false)
+  const [activeTab, setActiveTab] = useState<'details' | 'tasks' | 'notes'>('details')
+  const [tasks, setTasks] = useState<Task[]>([])
+  const [notes, setNotes] = useState<Note[]>([])
+  const [loadingTasks, setLoadingTasks] = useState(false)
+  const [loadingNotes, setLoadingNotes] = useState(false)
+  const [newTaskTitle, setNewTaskTitle] = useState('')
+  const [newTaskDueDate, setNewTaskDueDate] = useState('')
+  const [newNoteContent, setNewNoteContent] = useState('')
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -407,7 +433,113 @@ export default function RecruitmentPage() {
 
   const handleContactClick = (contact: Contact) => {
     setSelectedContact(contact)
+    setActiveTab('details')
+    setTasks([])
+    setNotes([])
+    setNewTaskTitle('')
+    setNewTaskDueDate('')
+    setNewNoteContent('')
     setContactDialogOpen(true)
+    // Load tasks and notes
+    fetchTasks(contact.id)
+    fetchNotes(contact.id)
+  }
+
+  const fetchTasks = async (contactId: string) => {
+    setLoadingTasks(true)
+    try {
+      const res = await fetch(`/api/contacts/${contactId}/tasks`)
+      const data = await res.json()
+      setTasks(data.tasks || [])
+    } catch (error) {
+      console.error('Error fetching tasks:', error)
+    } finally {
+      setLoadingTasks(false)
+    }
+  }
+
+  const fetchNotes = async (contactId: string) => {
+    setLoadingNotes(true)
+    try {
+      const res = await fetch(`/api/contacts/${contactId}/notes`)
+      const data = await res.json()
+      setNotes(data.notes || [])
+    } catch (error) {
+      console.error('Error fetching notes:', error)
+    } finally {
+      setLoadingNotes(false)
+    }
+  }
+
+  const handleAddTask = async () => {
+    if (!selectedContact || !newTaskTitle.trim()) return
+    try {
+      const res = await fetch(`/api/contacts/${selectedContact.id}/tasks`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          title: newTaskTitle, 
+          dueDate: newTaskDueDate || null 
+        }),
+      })
+      const data = await res.json()
+      if (data.task) {
+        setTasks([data.task, ...tasks])
+        setNewTaskTitle('')
+        setNewTaskDueDate('')
+      }
+    } catch (error) {
+      console.error('Error adding task:', error)
+    }
+  }
+
+  const handleToggleTask = async (taskId: string, completed: boolean) => {
+    try {
+      await fetch(`/api/tasks/${taskId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ completed: !completed }),
+      })
+      setTasks(tasks.map(t => t.id === taskId ? { ...t, completed: !completed } : t))
+    } catch (error) {
+      console.error('Error toggling task:', error)
+    }
+  }
+
+  const handleDeleteTask = async (taskId: string) => {
+    try {
+      await fetch(`/api/tasks/${taskId}`, { method: 'DELETE' })
+      setTasks(tasks.filter(t => t.id !== taskId))
+    } catch (error) {
+      console.error('Error deleting task:', error)
+    }
+  }
+
+  const handleAddNote = async () => {
+    if (!selectedContact || !newNoteContent.trim()) return
+    try {
+      const res = await fetch(`/api/contacts/${selectedContact.id}/notes`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: newNoteContent }),
+      })
+      const data = await res.json()
+      if (data.note) {
+        setNotes([data.note, ...notes])
+        setNewNoteContent('')
+      }
+    } catch (error) {
+      console.error('Error adding note:', error)
+    }
+  }
+
+  const handleDeleteNote = async (noteId: string) => {
+    try {
+      await fetch(`/api/notes/${noteId}`, { method: 'DELETE' })
+      setNotes(notes.filter(n => n.id !== noteId))
+    } catch (error) {
+      console.error('Error deleting note:', error)
+    }
   }
 
   if (loading) {
@@ -665,79 +797,260 @@ export default function RecruitmentPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Contact Detail Dialog */}
+      {/* Contact Detail Dialog - GHL Style */}
       <Dialog open={contactDialogOpen} onOpenChange={setContactDialogOpen}>
-        <DialogContent className="sm:max-w-[500px]">
-          <DialogHeader>
-            <DialogTitle>Contact Details</DialogTitle>
-          </DialogHeader>
-          
-          {selectedContact && (
-            <div className="space-y-4 py-4">
-              <div className="flex items-center gap-4">
-                <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center">
-                  <span className="text-2xl font-semibold text-primary">
-                    {(selectedContact.firstName?.[0] || selectedContact.lastName?.[0] || '?').toUpperCase()}
-                  </span>
-                </div>
-                <div>
-                  <h3 className="text-xl font-semibold">
-                    {selectedContact.firstName || selectedContact.lastName
-                      ? `${selectedContact.firstName || ''} ${selectedContact.lastName || ''}`.trim()
-                      : 'No Name'}
-                  </h3>
-                  <p className="text-sm text-muted-foreground">
-                    {stages.find(s => s.id === selectedContact.recruitmentStage)?.name || 'No Stage'}
-                  </p>
-                </div>
+        <DialogContent className="sm:max-w-[700px] p-0 gap-0">
+          <div className="flex h-[500px]">
+            {/* Left Sidebar - Tabs */}
+            <div className="w-48 border-r bg-muted/30 p-2 flex flex-col gap-1">
+              <button
+                onClick={() => setActiveTab('details')}
+                className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm text-left transition-colors ${
+                  activeTab === 'details' ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'
+                }`}
+              >
+                <User className="h-4 w-4" />
+                Details
+              </button>
+              <button
+                onClick={() => setActiveTab('tasks')}
+                className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm text-left transition-colors ${
+                  activeTab === 'tasks' ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'
+                }`}
+              >
+                <ListTodo className="h-4 w-4" />
+                Tasks
+                {tasks.length > 0 && (
+                  <Badge variant="secondary" className="ml-auto text-xs">{tasks.length}</Badge>
+                )}
+              </button>
+              <button
+                onClick={() => setActiveTab('notes')}
+                className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm text-left transition-colors ${
+                  activeTab === 'notes' ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'
+                }`}
+              >
+                <FileText className="h-4 w-4" />
+                Notes
+                {notes.length > 0 && (
+                  <Badge variant="secondary" className="ml-auto text-xs">{notes.length}</Badge>
+                )}
+              </button>
+            </div>
+
+            {/* Right Content */}
+            <div className="flex-1 flex flex-col">
+              {/* Header */}
+              <div className="p-4 border-b">
+                {selectedContact && (
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center">
+                      <span className="text-lg font-semibold text-primary">
+                        {(selectedContact.firstName?.[0] || selectedContact.lastName?.[0] || '?').toUpperCase()}
+                      </span>
+                    </div>
+                    <div>
+                      <h3 className="font-semibold">
+                        {selectedContact.firstName || selectedContact.lastName
+                          ? `${selectedContact.firstName || ''} ${selectedContact.lastName || ''}`.trim()
+                          : 'No Name'}
+                      </h3>
+                      <p className="text-sm text-muted-foreground">
+                        {stages.find(s => s.id === selectedContact.recruitmentStage)?.name || 'No Stage'}
+                      </p>
+                    </div>
+                  </div>
+                )}
               </div>
 
-              <div className="space-y-3">
-                {selectedContact.email && (
-                  <div className="flex items-center gap-3 p-3 bg-muted rounded-lg">
-                    <Mail className="h-5 w-5 text-muted-foreground" />
-                    <div>
-                      <p className="text-xs text-muted-foreground">Email</p>
-                      <a href={`mailto:${selectedContact.email}`} className="text-sm hover:underline">
-                        {selectedContact.email}
-                      </a>
+              {/* Tab Content */}
+              <div className="flex-1 overflow-y-auto p-4">
+                {/* Details Tab */}
+                {activeTab === 'details' && selectedContact && (
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      {selectedContact.email && (
+                        <div className="p-3 bg-muted rounded-lg">
+                          <p className="text-xs text-muted-foreground mb-1">Email</p>
+                          <a href={`mailto:${selectedContact.email}`} className="text-sm hover:underline flex items-center gap-2">
+                            <Mail className="h-4 w-4" />
+                            {selectedContact.email}
+                          </a>
+                        </div>
+                      )}
+                      {selectedContact.phone && (
+                        <div className="p-3 bg-muted rounded-lg">
+                          <p className="text-xs text-muted-foreground mb-1">Phone</p>
+                          <a href={`tel:${selectedContact.phone}`} className="text-sm hover:underline flex items-center gap-2">
+                            <Phone className="h-4 w-4" />
+                            {selectedContact.phone}
+                          </a>
+                        </div>
+                      )}
                     </div>
-                  </div>
-                )}
-                
-                {selectedContact.phone && (
-                  <div className="flex items-center gap-3 p-3 bg-muted rounded-lg">
-                    <Phone className="h-5 w-5 text-muted-foreground" />
-                    <div>
-                      <p className="text-xs text-muted-foreground">Phone</p>
-                      <a href={`tel:${selectedContact.phone}`} className="text-sm hover:underline">
-                        {selectedContact.phone}
-                      </a>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="p-3 bg-muted rounded-lg">
+                        <p className="text-xs text-muted-foreground mb-1">Stage</p>
+                        <p className="text-sm font-medium">
+                          {stages.find(s => s.id === selectedContact.recruitmentStage)?.name || 'No Stage'}
+                        </p>
+                      </div>
+                      {selectedContact.source && (
+                        <div className="p-3 bg-muted rounded-lg">
+                          <p className="text-xs text-muted-foreground mb-1">Source</p>
+                          <p className="text-sm">{selectedContact.source}</p>
+                        </div>
+                      )}
                     </div>
+
+                    {selectedContact.tags && selectedContact.tags.length > 0 && (
+                      <div className="p-3 bg-muted rounded-lg">
+                        <p className="text-xs text-muted-foreground mb-2">Tags</p>
+                        <div className="flex flex-wrap gap-1">
+                          {selectedContact.tags.map((tag, idx) => (
+                            <Badge key={idx} variant="secondary" className="text-xs">
+                              {tag}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {selectedContact.dateAdded && (
+                      <div className="p-3 bg-muted rounded-lg">
+                        <p className="text-xs text-muted-foreground mb-1">Date Added</p>
+                        <p className="text-sm">{new Date(selectedContact.dateAdded).toLocaleDateString()}</p>
+                      </div>
+                    )}
                   </div>
                 )}
 
-                {selectedContact.tags && selectedContact.tags.length > 0 && (
-                  <div className="p-3 bg-muted rounded-lg">
-                    <p className="text-xs text-muted-foreground mb-2">Tags</p>
-                    <div className="flex flex-wrap gap-1">
-                      {selectedContact.tags.map((tag, idx) => (
-                        <Badge key={idx} variant="secondary" className="text-xs">
-                          {tag}
-                        </Badge>
-                      ))}
+                {/* Tasks Tab */}
+                {activeTab === 'tasks' && (
+                  <div className="space-y-4">
+                    {/* Add Task Form */}
+                    <div className="flex gap-2">
+                      <Input
+                        placeholder="Add a task..."
+                        value={newTaskTitle}
+                        onChange={(e) => setNewTaskTitle(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && handleAddTask()}
+                        className="flex-1"
+                      />
+                      <Input
+                        type="date"
+                        value={newTaskDueDate}
+                        onChange={(e) => setNewTaskDueDate(e.target.value)}
+                        className="w-40"
+                      />
+                      <Button onClick={handleAddTask} size="sm">
+                        <Plus className="h-4 w-4" />
+                      </Button>
                     </div>
+
+                    {/* Tasks List */}
+                    {loadingTasks ? (
+                      <p className="text-sm text-muted-foreground text-center py-4">Loading tasks...</p>
+                    ) : tasks.length === 0 ? (
+                      <p className="text-sm text-muted-foreground text-center py-8">No tasks yet</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {tasks.map((task) => (
+                          <div
+                            key={task.id}
+                            className={`flex items-start gap-3 p-3 rounded-lg border ${
+                              task.completed ? 'bg-muted/50' : 'bg-white'
+                            }`}
+                          >
+                            <button
+                              onClick={() => handleToggleTask(task.id, task.completed)}
+                              className="mt-0.5"
+                            >
+                              {task.completed ? (
+                                <CheckCircle2 className="h-5 w-5 text-green-500" />
+                              ) : (
+                                <Circle className="h-5 w-5 text-muted-foreground" />
+                              )}
+                            </button>
+                            <div className="flex-1 min-w-0">
+                              <p className={`text-sm ${task.completed ? 'line-through text-muted-foreground' : ''}`}>
+                                {task.title}
+                              </p>
+                              {task.dueDate && (
+                                <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
+                                  <Calendar className="h-3 w-3" />
+                                  {new Date(task.dueDate).toLocaleDateString()}
+                                </p>
+                              )}
+                            </div>
+                            <button
+                              onClick={() => handleDeleteTask(task.id)}
+                              className="text-muted-foreground hover:text-red-500"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )}
+
+                {/* Notes Tab */}
+                {activeTab === 'notes' && (
+                  <div className="space-y-4">
+                    {/* Add Note Form */}
+                    <div className="space-y-2">
+                      <Textarea
+                        placeholder="Add a note..."
+                        value={newNoteContent}
+                        onChange={(e) => setNewNoteContent(e.target.value)}
+                        rows={3}
+                      />
+                      <Button onClick={handleAddNote} size="sm" className="w-full">
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add Note
+                      </Button>
+                    </div>
+
+                    {/* Notes List */}
+                    {loadingNotes ? (
+                      <p className="text-sm text-muted-foreground text-center py-4">Loading notes...</p>
+                    ) : notes.length === 0 ? (
+                      <p className="text-sm text-muted-foreground text-center py-8">No notes yet</p>
+                    ) : (
+                      <div className="space-y-3">
+                        {notes.map((note) => (
+                          <div key={note.id} className="p-3 rounded-lg border bg-white">
+                            <div className="flex justify-between items-start gap-2">
+                              <p className="text-sm whitespace-pre-wrap flex-1">{note.content}</p>
+                              <button
+                                onClick={() => handleDeleteNote(note.id)}
+                                className="text-muted-foreground hover:text-red-500 flex-shrink-0"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            </div>
+                            <p className="text-xs text-muted-foreground mt-2">
+                              {new Date(note.createdAt).toLocaleString()}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Footer */}
+              <div className="p-4 border-t flex justify-end">
+                <Button variant="outline" onClick={() => setContactDialogOpen(false)}>
+                  Close
+                </Button>
               </div>
             </div>
-          )}
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setContactDialogOpen(false)}>
-              Close
-            </Button>
-          </DialogFooter>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
