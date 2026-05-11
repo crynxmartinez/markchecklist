@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { prisma } from '@/lib/prisma'
 
 const GHL_API_BASE = 'https://services.leadconnectorhq.com'
 const GHL_API_VERSION = '2021-07-28'
@@ -12,13 +13,8 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Missing GHL credentials' }, { status: 500 })
     }
 
-    // Test 1: Try to get all conversations for the location
-    console.log('Testing GHL Conversations API...')
-    console.log('Location ID:', locationId)
-    
+    // Get GHL conversations
     const url = `${GHL_API_BASE}/conversations/search?locationId=${locationId}`
-    console.log('Request URL:', url)
-
     const response = await fetch(url, {
       method: 'GET',
       headers: {
@@ -28,29 +24,43 @@ export async function GET(request: Request) {
       },
     })
 
-    console.log('Response status:', response.status)
+    const data = await response.json()
     
-    const responseText = await response.text()
-    console.log('Response body:', responseText.substring(0, 500))
+    // Get contactIds from GHL conversations
+    const ghlContactIds = data.conversations?.map((c: any) => c.contactId) || []
+    
+    // Check how many of our contacts match these GHL contact IDs
+    const matchingContacts = await prisma.contact.findMany({
+      where: {
+        ghlContactId: { in: ghlContactIds }
+      },
+      select: {
+        id: true,
+        ghlContactId: true,
+        firstName: true,
+        lastName: true
+      }
+    })
 
-    let data
-    try {
-      data = JSON.parse(responseText)
-    } catch {
-      return NextResponse.json({
-        error: 'Failed to parse response',
-        status: response.status,
-        body: responseText.substring(0, 500)
-      })
-    }
+    // Get a sample of our contacts to see their ghlContactId format
+    const sampleContacts = await prisma.contact.findMany({
+      take: 5,
+      select: {
+        id: true,
+        ghlContactId: true,
+        firstName: true,
+        lastName: true
+      }
+    })
 
     return NextResponse.json({
       success: response.ok,
-      status: response.status,
-      conversationsCount: data.conversations?.length || 0,
-      conversations: data.conversations?.slice(0, 5) || [],
-      total: data.total,
-      rawKeys: Object.keys(data)
+      ghlConversationsTotal: data.total,
+      ghlConversationsReturned: data.conversations?.length || 0,
+      ghlContactIdsFromConversations: ghlContactIds.slice(0, 5),
+      matchingContactsInOurDB: matchingContacts.length,
+      matchingContactsSample: matchingContacts.slice(0, 3),
+      ourContactsSample: sampleContacts
     })
 
   } catch (error: any) {
