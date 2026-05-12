@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
 
 const GHL_API_BASE = 'https://services.leadconnectorhq.com'
 const GHL_API_VERSION = '2021-07-28'
@@ -13,9 +12,9 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Missing GHL credentials' }, { status: 500 })
     }
 
-    // Get GHL conversations
-    const url = `${GHL_API_BASE}/conversations/search?locationId=${locationId}`
-    const response = await fetch(url, {
+    // Get first conversation
+    const convUrl = `${GHL_API_BASE}/conversations/search?locationId=${locationId}&limit=1`
+    const convResponse = await fetch(convUrl, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${apiKey}`,
@@ -23,44 +22,34 @@ export async function GET(request: Request) {
         'Accept': 'application/json',
       },
     })
+    const convData = await convResponse.json()
+    const conversationId = convData.conversations?.[0]?.id
 
-    const data = await response.json()
-    
-    // Get contactIds from GHL conversations
-    const ghlContactIds = data.conversations?.map((c: any) => c.contactId) || []
-    
-    // Check how many of our contacts match these GHL contact IDs
-    const matchingContacts = await prisma.contact.findMany({
-      where: {
-        ghlContactId: { in: ghlContactIds }
+    if (!conversationId) {
+      return NextResponse.json({ error: 'No conversations found' })
+    }
+
+    // Get messages for that conversation - RAW response
+    const msgUrl = `${GHL_API_BASE}/conversations/${conversationId}/messages`
+    const msgResponse = await fetch(msgUrl, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Version': GHL_API_VERSION,
+        'Accept': 'application/json',
       },
-      select: {
-        id: true,
-        ghlContactId: true,
-        firstName: true,
-        lastName: true
-      }
     })
-
-    // Get a sample of our contacts to see their ghlContactId format
-    const sampleContacts = await prisma.contact.findMany({
-      take: 5,
-      select: {
-        id: true,
-        ghlContactId: true,
-        firstName: true,
-        lastName: true
-      }
-    })
+    const msgData = await msgResponse.json()
 
     return NextResponse.json({
-      success: response.ok,
-      ghlConversationsTotal: data.total,
-      ghlConversationsReturned: data.conversations?.length || 0,
-      ghlContactIdsFromConversations: ghlContactIds.slice(0, 5),
-      matchingContactsInOurDB: matchingContacts.length,
-      matchingContactsSample: matchingContacts.slice(0, 3),
-      ourContactsSample: sampleContacts
+      conversationId,
+      rawResponseKeys: Object.keys(msgData),
+      rawResponseType: typeof msgData.messages,
+      isMessagesArray: Array.isArray(msgData.messages),
+      firstMessageSample: Array.isArray(msgData.messages) 
+        ? msgData.messages[0] 
+        : msgData.messages ? Object.entries(msgData.messages)[0] : null,
+      rawResponse: JSON.stringify(msgData).substring(0, 2000)
     })
 
   } catch (error: any) {
