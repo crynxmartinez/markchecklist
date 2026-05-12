@@ -46,10 +46,12 @@ export default function ConversationsPage() {
   const [loadingMessages, setLoadingMessages] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [filter, setFilter] = useState<'all' | 'unread' | 'read'>('all')
+  const [readConversationIds, setReadConversationIds] = useState<Set<string>>(new Set())
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     fetchConversationsList()
+    fetchReadStatus()
   }, [])
 
   useEffect(() => {
@@ -68,6 +70,25 @@ export default function ConversationsPage() {
       console.error('Error fetching conversations:', error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const fetchReadStatus = async () => {
+    try {
+      const res = await fetch('/api/conversations/read-status')
+      const data = await res.json()
+      setReadConversationIds(new Set(data.readIds || []))
+    } catch (error) {
+      console.error('Error fetching read status:', error)
+    }
+  }
+
+  const markAsRead = async (conversationId: string) => {
+    try {
+      await fetch(`/api/conversations/${conversationId}/read`, { method: 'POST' })
+      setReadConversationIds(prev => new Set([...Array.from(prev), conversationId]))
+    } catch (error) {
+      console.error('Error marking as read:', error)
     }
   }
 
@@ -95,12 +116,17 @@ export default function ConversationsPage() {
     setSelectedConversation(conv)
     setMessages([])
     fetchMessages(conv.id)
+    // Mark as read in our system
+    if (!readConversationIds.has(conv.id)) {
+      markAsRead(conv.id)
+    }
   }
 
   const filteredConversations = conversationsList.filter(conv => {
-    // Filter by read/unread status
-    if (filter === 'unread' && (!conv.unreadCount || conv.unreadCount === 0)) return false
-    if (filter === 'read' && conv.unreadCount && conv.unreadCount > 0) return false
+    // Filter by read/unread status (using our system, not GHL)
+    const isRead = readConversationIds.has(conv.id)
+    if (filter === 'unread' && isRead) return false
+    if (filter === 'read' && !isRead) return false
     
     // Filter by search query (name, email, phone)
     if (searchQuery) {
@@ -187,39 +213,46 @@ export default function ConversationsPage() {
             <p className="text-center text-muted-foreground py-8">No conversations found</p>
           ) : (
             <div className="divide-y">
-              {filteredConversations.map((conv) => (
+              {filteredConversations.map((conv) => {
+                const isRead = readConversationIds.has(conv.id)
+                return (
                 <button
                   key={conv.id}
                   onClick={() => handleSelectConversation(conv)}
                   className={`w-full p-3 text-left hover:bg-muted transition-colors ${
                     selectedConversation?.id === conv.id ? 'bg-muted' : ''
-                  }`}
+                  } ${!isRead ? 'bg-blue-50' : ''}`}
                 >
                   <div className="flex items-start gap-3">
-                    <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center flex-shrink-0">
-                      <span className="text-sm font-medium text-primary">
-                        {getInitials(conv.contactName || 'Unknown')}
-                      </span>
+                    {/* Unread indicator dot */}
+                    <div className="relative">
+                      <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center flex-shrink-0">
+                        <span className="text-sm font-medium text-primary">
+                          {getInitials(conv.contactName || 'Unknown')}
+                        </span>
+                      </div>
+                      {!isRead && (
+                        <div className="absolute -top-0.5 -right-0.5 w-3 h-3 bg-blue-500 rounded-full border-2 border-white" />
+                      )}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between">
-                        <p className="font-medium text-sm truncate">{conv.contactName || 'Unknown'}</p>
+                        <p className={`text-sm truncate ${!isRead ? 'font-semibold' : 'font-medium'}`}>
+                          {conv.contactName || 'Unknown'}
+                        </p>
                         {conv.lastMessageDate && (
                           <span className="text-xs text-muted-foreground flex-shrink-0 ml-2">
                             {formatDate(conv.lastMessageDate)}
                           </span>
                         )}
                       </div>
-                      <p className="text-xs text-muted-foreground truncate mt-0.5">
+                      <p className={`text-xs truncate mt-0.5 ${!isRead ? 'text-foreground font-medium' : 'text-muted-foreground'}`}>
                         {conv.lastMessageBody || 'No messages'}
                       </p>
                       <div className="flex items-center gap-2 mt-1">
                         <Badge variant="outline" className="text-[10px] px-1 py-0">
                           {conv.type === 'TYPE_PHONE' ? 'SMS' : conv.type === 'TYPE_EMAIL' ? 'Email' : conv.type}
                         </Badge>
-                        {conv.unreadCount && conv.unreadCount > 0 && (
-                          <Badge className="text-[10px] px-1.5 py-0">{conv.unreadCount}</Badge>
-                        )}
                       </div>
                     </div>
                   </div>
