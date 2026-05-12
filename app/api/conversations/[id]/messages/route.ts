@@ -46,19 +46,16 @@ export async function GET(
 
     const data = await response.json()
     console.log('GHL response keys:', Object.keys(data))
-    console.log('Raw messages type:', typeof data.messages)
-    console.log('Raw data sample:', JSON.stringify(data).substring(0, 500))
     
-    // GHL may return messages as array or object - handle both
+    // GHL returns: { messages: { lastMessageId, nextPage, messages: [...] } }
+    // The actual messages array is NESTED at data.messages.messages
     let messagesArray: any[] = []
-    if (Array.isArray(data.messages)) {
+    if (data.messages?.messages && Array.isArray(data.messages.messages)) {
+      // Nested structure: data.messages.messages
+      messagesArray = data.messages.messages
+    } else if (Array.isArray(data.messages)) {
+      // Direct array: data.messages
       messagesArray = data.messages
-    } else if (data.messages && typeof data.messages === 'object') {
-      // If it's an object with message entries
-      messagesArray = Object.values(data.messages)
-    } else if (Array.isArray(data)) {
-      // If the response itself is an array
-      messagesArray = data
     }
     
     console.log('Messages array length:', messagesArray.length)
