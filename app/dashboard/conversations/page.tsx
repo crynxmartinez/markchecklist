@@ -45,6 +45,7 @@ export default function ConversationsPage() {
   const [loading, setLoading] = useState(true)
   const [loadingMessages, setLoadingMessages] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
+  const [filter, setFilter] = useState<'all' | 'unread' | 'read'>('all')
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -97,11 +98,20 @@ export default function ConversationsPage() {
   }
 
   const filteredConversations = conversationsList.filter(conv => {
-    const name = (conv.contactName || '').toLowerCase()
-    const email = (conv.email || '').toLowerCase()
-    const phone = (conv.phone || '').toLowerCase()
-    const query = searchQuery.toLowerCase()
-    return name.includes(query) || email.includes(query) || phone.includes(query)
+    // Filter by read/unread status
+    if (filter === 'unread' && (!conv.unreadCount || conv.unreadCount === 0)) return false
+    if (filter === 'read' && conv.unreadCount && conv.unreadCount > 0) return false
+    
+    // Filter by search query (name, email, phone)
+    if (searchQuery) {
+      const name = (conv.contactName || '').toLowerCase()
+      const email = (conv.email || '').toLowerCase()
+      const phone = (conv.phone || '').toLowerCase()
+      const query = searchQuery.toLowerCase()
+      return name.includes(query) || email.includes(query) || phone.includes(query)
+    }
+    
+    return true
   })
 
   const getInitials = (name: string) => {
@@ -134,11 +144,39 @@ export default function ConversationsPage() {
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Search conversations..."
+              placeholder="Search by name, email, or phone..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-9"
             />
+          </div>
+          
+          {/* Filter Tabs */}
+          <div className="flex gap-1 mt-3">
+            <Button
+              variant={filter === 'all' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setFilter('all')}
+              className="flex-1 h-8 text-xs"
+            >
+              All
+            </Button>
+            <Button
+              variant={filter === 'unread' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setFilter('unread')}
+              className="flex-1 h-8 text-xs"
+            >
+              Unread
+            </Button>
+            <Button
+              variant={filter === 'read' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setFilter('read')}
+              className="flex-1 h-8 text-xs"
+            >
+              Read
+            </Button>
           </div>
         </div>
         
