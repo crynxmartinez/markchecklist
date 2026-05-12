@@ -46,10 +46,25 @@ export async function GET(
 
     const data = await response.json()
     console.log('GHL response keys:', Object.keys(data))
-    console.log('Messages count:', data.messages?.length || 0)
+    console.log('Raw messages type:', typeof data.messages)
+    console.log('Raw data sample:', JSON.stringify(data).substring(0, 500))
+    
+    // GHL may return messages as array or object - handle both
+    let messagesArray: any[] = []
+    if (Array.isArray(data.messages)) {
+      messagesArray = data.messages
+    } else if (data.messages && typeof data.messages === 'object') {
+      // If it's an object with message entries
+      messagesArray = Object.values(data.messages)
+    } else if (Array.isArray(data)) {
+      // If the response itself is an array
+      messagesArray = data
+    }
+    
+    console.log('Messages array length:', messagesArray.length)
     
     // Sort messages by date (oldest first for chat view)
-    const messages = (data.messages || []).sort((a: any, b: any) => {
+    const messages = messagesArray.sort((a: any, b: any) => {
       const dateA = parseInt(a.dateAdded) || new Date(a.dateAdded).getTime()
       const dateB = parseInt(b.dateAdded) || new Date(b.dateAdded).getTime()
       return dateA - dateB
@@ -60,7 +75,8 @@ export async function GET(
       debug: {
         conversationId: id,
         totalMessages: messages.length,
-        rawKeys: Object.keys(data)
+        rawKeys: Object.keys(data),
+        messagesType: typeof data.messages
       }
     })
   } catch (error) {
