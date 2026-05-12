@@ -1,20 +1,10 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
-import { MessageSquare, Search, Mail, Phone, User } from 'lucide-react'
-
-interface Contact {
-  id: string
-  ghlContactId: string
-  firstName?: string
-  lastName?: string
-  email?: string
-  phone?: string
-  tags: string[]
-}
+import { MessageSquare, Search, Mail, Phone, RefreshCw } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 
 interface Message {
   id: string
@@ -30,110 +20,115 @@ interface Message {
   }
 }
 
-interface Conversation {
+interface ConversationItem {
   id: string
   contactId: string
-  type: string
-  lastMessageBody?: string
-  lastMessageDate?: string
-  fullName?: string
+  contactName: string
   email?: string
   phone?: string
+  lastMessageBody?: string
+  lastMessageDate?: string
+  type: string
+  unreadCount?: number
+}
+
+interface ConversationWithMessages {
+  id: string
+  type: string
   messages: Message[]
 }
 
 export default function ConversationsPage() {
-  const [contacts, setContacts] = useState<Contact[]>([])
-  const [selectedContact, setSelectedContact] = useState<Contact | null>(null)
-  const [conversations, setConversations] = useState<Conversation[]>([])
+  const [conversationsList, setConversationsList] = useState<ConversationItem[]>([])
+  const [selectedConversation, setSelectedConversation] = useState<ConversationItem | null>(null)
+  const [messages, setMessages] = useState<Message[]>([])
   const [loading, setLoading] = useState(true)
-  const [loadingConversations, setLoadingConversations] = useState(false)
+  const [loadingMessages, setLoadingMessages] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    fetchContacts()
+    fetchConversationsList()
   }, [])
 
   useEffect(() => {
     if (messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: 'smooth' })
     }
-  }, [conversations])
+  }, [messages])
 
-  const fetchContacts = async () => {
+  const fetchConversationsList = async () => {
+    setLoading(true)
     try {
-      const res = await fetch('/api/contacts')
+      const res = await fetch('/api/conversations')
       const data = await res.json()
-      setContacts(data.contacts || [])
+      setConversationsList(data.conversations || [])
     } catch (error) {
-      console.error('Error fetching contacts:', error)
+      console.error('Error fetching conversations:', error)
     } finally {
       setLoading(false)
     }
   }
 
-  const fetchConversations = async (contactId: string) => {
-    setLoadingConversations(true)
+  const fetchMessages = async (conversationId: string) => {
+    setLoadingMessages(true)
     try {
-      const res = await fetch(`/api/contacts/${contactId}/conversations`)
+      const res = await fetch(`/api/conversations/${conversationId}/messages`)
       const data = await res.json()
-      console.log('Conversations response:', data)
-      if (data.error) {
-        console.error('API Error:', data.error)
-      }
-      if (data.debug) {
-        console.log('Debug info:', data.debug)
-      }
-      setConversations(data.conversations || [])
+      setMessages(data.messages || [])
     } catch (error) {
-      console.error('Error fetching conversations:', error)
-      setConversations([])
+      console.error('Error fetching messages:', error)
+      setMessages([])
     } finally {
-      setLoadingConversations(false)
+      setLoadingMessages(false)
     }
   }
 
-  const handleSelectContact = (contact: Contact) => {
-    setSelectedContact(contact)
-    setConversations([])
-    fetchConversations(contact.id)
+  const handleSelectConversation = (conv: ConversationItem) => {
+    setSelectedConversation(conv)
+    setMessages([])
+    fetchMessages(conv.id)
   }
 
-  const filteredContacts = contacts.filter(contact => {
-    const name = `${contact.firstName || ''} ${contact.lastName || ''}`.toLowerCase()
-    const email = (contact.email || '').toLowerCase()
-    const phone = (contact.phone || '').toLowerCase()
+  const filteredConversations = conversationsList.filter(conv => {
+    const name = (conv.contactName || '').toLowerCase()
+    const email = (conv.email || '').toLowerCase()
+    const phone = (conv.phone || '').toLowerCase()
     const query = searchQuery.toLowerCase()
     return name.includes(query) || email.includes(query) || phone.includes(query)
   })
 
-  const getContactName = (contact: Contact) => {
-    if (contact.firstName || contact.lastName) {
-      return `${contact.firstName || ''} ${contact.lastName || ''}`.trim()
-    }
-    return contact.email || contact.phone || 'Unknown'
+  const getInitials = (name: string) => {
+    return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || '?'
   }
 
-  const getInitials = (contact: Contact) => {
-    const name = getContactName(contact)
-    return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
+  const formatDate = (dateStr: string) => {
+    const date = new Date(parseInt(dateStr) || dateStr)
+    const now = new Date()
+    const diff = now.getTime() - date.getTime()
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24))
+    
+    if (days === 0) return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    if (days === 1) return 'Yesterday'
+    if (days < 7) return date.toLocaleDateString([], { weekday: 'short' })
+    return date.toLocaleDateString([], { month: 'short', day: 'numeric' })
   }
-
-  const allMessages = conversations.flatMap(conv => 
-    conv.messages.map(msg => ({ ...msg, conversationType: conv.type }))
-  ).sort((a, b) => new Date(a.dateAdded).getTime() - new Date(b.dateAdded).getTime())
 
   return (
     <div className="h-[calc(100vh-4rem)] flex">
-      {/* Left Panel - Contact List */}
-      <div className="w-80 border-r flex flex-col bg-muted/30">
+      {/* Left Panel - Conversations List */}
+      <div className="w-96 border-r flex flex-col bg-muted/30">
         <div className="p-4 border-b">
-          <h1 className="text-xl font-bold mb-3">Conversations</h1>
+          <div className="flex items-center justify-between mb-3">
+            <h1 className="text-xl font-bold">Conversations</h1>
+            <Button variant="ghost" size="sm" onClick={fetchConversationsList} disabled={loading}>
+              <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+            </Button>
+          </div>
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Search contacts..."
+              placeholder="Search conversations..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-9"
@@ -143,30 +138,45 @@ export default function ConversationsPage() {
         
         <div className="flex-1 overflow-y-auto">
           {loading ? (
-            <p className="text-center text-muted-foreground py-8">Loading contacts...</p>
-          ) : filteredContacts.length === 0 ? (
-            <p className="text-center text-muted-foreground py-8">No contacts found</p>
+            <p className="text-center text-muted-foreground py-8">Loading conversations from GHL...</p>
+          ) : filteredConversations.length === 0 ? (
+            <p className="text-center text-muted-foreground py-8">No conversations found</p>
           ) : (
             <div className="divide-y">
-              {filteredContacts.slice(0, 100).map((contact) => (
+              {filteredConversations.map((conv) => (
                 <button
-                  key={contact.id}
-                  onClick={() => handleSelectContact(contact)}
+                  key={conv.id}
+                  onClick={() => handleSelectConversation(conv)}
                   className={`w-full p-3 text-left hover:bg-muted transition-colors ${
-                    selectedContact?.id === contact.id ? 'bg-muted' : ''
+                    selectedConversation?.id === conv.id ? 'bg-muted' : ''
                   }`}
                 >
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-start gap-3">
                     <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center flex-shrink-0">
                       <span className="text-sm font-medium text-primary">
-                        {getInitials(contact)}
+                        {getInitials(conv.contactName || 'Unknown')}
                       </span>
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="font-medium text-sm truncate">{getContactName(contact)}</p>
-                      {contact.email && (
-                        <p className="text-xs text-muted-foreground truncate">{contact.email}</p>
-                      )}
+                      <div className="flex items-center justify-between">
+                        <p className="font-medium text-sm truncate">{conv.contactName || 'Unknown'}</p>
+                        {conv.lastMessageDate && (
+                          <span className="text-xs text-muted-foreground flex-shrink-0 ml-2">
+                            {formatDate(conv.lastMessageDate)}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-muted-foreground truncate mt-0.5">
+                        {conv.lastMessageBody || 'No messages'}
+                      </p>
+                      <div className="flex items-center gap-2 mt-1">
+                        <Badge variant="outline" className="text-[10px] px-1 py-0">
+                          {conv.type === 'TYPE_PHONE' ? 'SMS' : conv.type === 'TYPE_EMAIL' ? 'Email' : conv.type}
+                        </Badge>
+                        {conv.unreadCount && conv.unreadCount > 0 && (
+                          <Badge className="text-[10px] px-1.5 py-0">{conv.unreadCount}</Badge>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </button>
@@ -176,13 +186,13 @@ export default function ConversationsPage() {
         </div>
       </div>
 
-      {/* Right Panel - Conversation View */}
+      {/* Right Panel - Messages View */}
       <div className="flex-1 flex flex-col">
-        {!selectedContact ? (
+        {!selectedConversation ? (
           <div className="flex-1 flex items-center justify-center text-muted-foreground">
             <div className="text-center">
               <MessageSquare className="h-12 w-12 mx-auto mb-4 opacity-50" />
-              <p>Select a contact to view conversations</p>
+              <p>Select a conversation to view messages</p>
             </div>
           </div>
         ) : (
@@ -191,22 +201,22 @@ export default function ConversationsPage() {
             <div className="p-4 border-b flex items-center gap-3">
               <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
                 <span className="text-sm font-medium text-primary">
-                  {getInitials(selectedContact)}
+                  {getInitials(selectedConversation.contactName || 'Unknown')}
                 </span>
               </div>
               <div className="flex-1">
-                <h2 className="font-semibold">{getContactName(selectedContact)}</h2>
+                <h2 className="font-semibold">{selectedConversation.contactName || 'Unknown'}</h2>
                 <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                  {selectedContact.email && (
+                  {selectedConversation.email && (
                     <span className="flex items-center gap-1">
                       <Mail className="h-3 w-3" />
-                      {selectedContact.email}
+                      {selectedConversation.email}
                     </span>
                   )}
-                  {selectedContact.phone && (
+                  {selectedConversation.phone && (
                     <span className="flex items-center gap-1">
                       <Phone className="h-3 w-3" />
-                      {selectedContact.phone}
+                      {selectedConversation.phone}
                     </span>
                   )}
                 </div>
@@ -215,16 +225,16 @@ export default function ConversationsPage() {
 
             {/* Messages */}
             <div className="flex-1 overflow-y-auto p-4 bg-muted/20">
-              {loadingConversations ? (
-                <p className="text-center text-muted-foreground py-8">Loading conversations...</p>
-              ) : allMessages.length === 0 ? (
+              {loadingMessages ? (
+                <p className="text-center text-muted-foreground py-8">Loading messages...</p>
+              ) : messages.length === 0 ? (
                 <div className="text-center text-muted-foreground py-8">
                   <MessageSquare className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                  <p>No conversations found</p>
+                  <p>No messages found</p>
                 </div>
               ) : (
                 <div className="space-y-4 max-w-3xl mx-auto">
-                  {allMessages.map((msg) => (
+                  {messages.map((msg) => (
                     <div
                       key={msg.id}
                       className={`flex ${msg.direction === 'outbound' ? 'justify-end' : 'justify-start'}`}
@@ -247,7 +257,7 @@ export default function ConversationsPage() {
                         <div className={`flex items-center gap-2 mt-1 text-xs ${
                           msg.direction === 'outbound' ? 'opacity-70' : 'text-muted-foreground'
                         }`}>
-                          <span>{new Date(msg.dateAdded).toLocaleString()}</span>
+                          <span>{new Date(parseInt(msg.dateAdded) || msg.dateAdded).toLocaleString()}</span>
                           <Badge variant={msg.direction === 'outbound' ? 'secondary' : 'outline'} className="text-[10px] px-1 py-0">
                             {msg.type === 1 ? 'SMS' : msg.type === 2 ? 'Email' : 'Message'}
                           </Badge>
@@ -265,7 +275,7 @@ export default function ConversationsPage() {
               )}
             </div>
 
-            {/* Footer - Placeholder for future send functionality */}
+            {/* Footer */}
             <div className="p-4 border-t bg-background">
               <p className="text-sm text-muted-foreground text-center">
                 View-only mode • Messages are synced from GoHighLevel
