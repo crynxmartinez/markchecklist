@@ -77,6 +77,7 @@ export default function ConversationsPage() {
       const res = await fetch(`/api/conversations/${conversationId}/messages`)
       const data = await res.json()
       console.log('Messages response:', data)
+      console.log('First message sample:', data.messages?.[0])
       if (data.error) {
         console.error('API error:', data.error)
       }
@@ -239,42 +240,60 @@ export default function ConversationsPage() {
                 </div>
               ) : (
                 <div className="space-y-4 max-w-3xl mx-auto">
-                  {messages.map((msg) => (
-                    <div
-                      key={msg.id}
-                      className={`flex ${msg.direction === 'outbound' ? 'justify-end' : 'justify-start'}`}
-                    >
+                  {messages.map((msg: any) => {
+                    // Handle different GHL field names
+                    const isOutbound = msg.direction === 'outbound' || msg.direction === 1
+                    const messageBody = msg.body || msg.message || msg.text || msg.content || ''
+                    const messageDate = msg.dateAdded || msg.createdAt || msg.timestamp || msg.date
+                    const messageType = msg.type || msg.messageType || 'SMS'
+                    
+                    // Parse date - could be timestamp or ISO string
+                    let dateDisplay = ''
+                    if (messageDate) {
+                      const timestamp = parseInt(messageDate)
+                      const date = !isNaN(timestamp) ? new Date(timestamp) : new Date(messageDate)
+                      dateDisplay = !isNaN(date.getTime()) ? date.toLocaleString() : ''
+                    }
+                    
+                    return (
                       <div
-                        className={`max-w-[70%] rounded-lg px-4 py-2 ${
-                          msg.direction === 'outbound'
-                            ? 'bg-primary text-primary-foreground'
-                            : 'bg-white border'
-                        }`}
+                        key={msg.id}
+                        className={`flex ${isOutbound ? 'justify-end' : 'justify-start'}`}
                       >
-                        {msg.meta?.email?.subject && (
-                          <p className={`text-xs font-medium mb-1 ${
-                            msg.direction === 'outbound' ? 'opacity-80' : 'text-muted-foreground'
-                          }`}>
-                            Subject: {msg.meta.email.subject}
-                          </p>
-                        )}
-                        <p className="text-sm whitespace-pre-wrap">{msg.body}</p>
-                        <div className={`flex items-center gap-2 mt-1 text-xs ${
-                          msg.direction === 'outbound' ? 'opacity-70' : 'text-muted-foreground'
-                        }`}>
-                          <span>{new Date(parseInt(msg.dateAdded) || msg.dateAdded).toLocaleString()}</span>
-                          <Badge variant={msg.direction === 'outbound' ? 'secondary' : 'outline'} className="text-[10px] px-1 py-0">
-                            {msg.type === 1 ? 'SMS' : msg.type === 2 ? 'Email' : 'Message'}
-                          </Badge>
-                          {msg.direction === 'outbound' && (
-                            <span>
-                              {msg.status === 'sent' ? '✓' : msg.status === 'delivered' ? '✓✓' : ''}
-                            </span>
+                        <div
+                          className={`max-w-[70%] rounded-lg px-4 py-2 ${
+                            isOutbound
+                              ? 'bg-primary text-primary-foreground'
+                              : 'bg-white border'
+                          }`}
+                        >
+                          {msg.meta?.email?.subject && (
+                            <p className={`text-xs font-medium mb-1 ${
+                              isOutbound ? 'opacity-80' : 'text-muted-foreground'
+                            }`}>
+                              Subject: {msg.meta.email.subject}
+                            </p>
                           )}
+                          <p className="text-sm whitespace-pre-wrap">{messageBody}</p>
+                          <div className={`flex items-center gap-2 mt-1 text-xs ${
+                            isOutbound ? 'opacity-70' : 'text-muted-foreground'
+                          }`}>
+                            {dateDisplay && <span>{dateDisplay}</span>}
+                            <Badge variant={isOutbound ? 'secondary' : 'outline'} className="text-[10px] px-1 py-0">
+                              {messageType === 1 || messageType === 'TYPE_SMS' ? 'SMS' : 
+                               messageType === 2 || messageType === 'TYPE_EMAIL' ? 'Email' : 
+                               typeof messageType === 'string' ? messageType.replace('TYPE_', '') : 'Message'}
+                            </Badge>
+                            {isOutbound && msg.status && (
+                              <span>
+                                {msg.status === 'sent' ? '✓' : msg.status === 'delivered' ? '✓✓' : ''}
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    )
+                  })}
                   <div ref={messagesEndRef} />
                 </div>
               )}
