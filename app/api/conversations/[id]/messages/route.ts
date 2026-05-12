@@ -5,11 +5,13 @@ const GHL_API_VERSION = '2021-07-28'
 
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = params
+    const { id } = await params
     const apiKey = process.env.GHL_API_KEY
+
+    console.log('Fetching messages for conversation:', id)
 
     if (!apiKey) {
       return NextResponse.json(
@@ -19,8 +21,10 @@ export async function GET(
     }
 
     // Fetch messages for this conversation from GHL
-    const response = await fetch(
-      `${GHL_API_BASE}/conversations/${id}/messages`,
+    const url = `${GHL_API_BASE}/conversations/${id}/messages`
+    console.log('GHL URL:', url)
+    
+    const response = await fetch(url,
       {
         method: 'GET',
         headers: {
@@ -41,6 +45,8 @@ export async function GET(
     }
 
     const data = await response.json()
+    console.log('GHL response keys:', Object.keys(data))
+    console.log('Messages count:', data.messages?.length || 0)
     
     // Sort messages by date (oldest first for chat view)
     const messages = (data.messages || []).sort((a: any, b: any) => {
@@ -49,7 +55,14 @@ export async function GET(
       return dateA - dateB
     })
 
-    return NextResponse.json({ messages })
+    return NextResponse.json({ 
+      messages,
+      debug: {
+        conversationId: id,
+        totalMessages: messages.length,
+        rawKeys: Object.keys(data)
+      }
+    })
   } catch (error) {
     console.error('Error fetching messages:', error)
     return NextResponse.json(

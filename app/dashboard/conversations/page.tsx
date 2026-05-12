@@ -72,9 +72,14 @@ export default function ConversationsPage() {
 
   const fetchMessages = async (conversationId: string) => {
     setLoadingMessages(true)
+    console.log('Fetching messages for:', conversationId)
     try {
       const res = await fetch(`/api/conversations/${conversationId}/messages`)
       const data = await res.json()
+      console.log('Messages response:', data)
+      if (data.error) {
+        console.error('API error:', data.error)
+      }
       setMessages(data.messages || [])
     } catch (error) {
       console.error('Error fetching messages:', error)
