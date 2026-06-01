@@ -1460,81 +1460,75 @@ export default function RecruitmentPage() {
                 {/* Conversations Tab */}
                 {activeTab === 'conversations' && (
                   <div className="flex flex-col h-full">
-                    <div className="flex-1 overflow-y-auto space-y-4">
+                    {/* Messages Area - Takes all available space */}
+                    <div className="flex-1 overflow-y-auto bg-gray-50 min-h-0">
                       {loadingConversations ? (
-                        <p className="text-sm text-muted-foreground text-center py-4">Loading conversations from GHL...</p>
-                      ) : conversations.length === 0 ? (
-                        <p className="text-sm text-muted-foreground text-center py-8">No conversations found</p>
+                        <div className="flex items-center justify-center h-full">
+                          <p className="text-sm text-muted-foreground">Loading messages...</p>
+                        </div>
+                      ) : conversations.length === 0 || conversations.every(c => c.messages.length === 0) ? (
+                        <div className="flex items-center justify-center h-full">
+                          <p className="text-sm text-muted-foreground">No messages yet</p>
+                        </div>
                       ) : (
-                        <div className="space-y-4">
-                          {conversations.map((conv) => (
-                            <div key={conv.id} className="border rounded-lg overflow-hidden">
-                              <div className="bg-muted px-3 py-2 text-xs font-medium flex items-center gap-2">
-                                <MessageSquare className="h-3 w-3" />
-                                {conv.type === 'TYPE_EMAIL' ? 'Email' : conv.type === 'TYPE_SMS' ? 'SMS' : conv.type}
-                                {conv.lastMessageDate && (
-                                  <span className="text-muted-foreground ml-auto">
-                                    Last: {new Date(conv.lastMessageDate).toLocaleDateString()}
-                                  </span>
-                                )}
-                              </div>
-                              <div className="max-h-[200px] overflow-y-auto">
-                                {conv.messages.length === 0 ? (
-                                  <p className="text-sm text-muted-foreground text-center py-4">No messages</p>
-                                ) : (
-                                  <div className="p-3 space-y-3">
-                                    {conv.messages.map((msg) => (
-                                      <div
-                                        key={msg.id}
-                                        className={`flex ${msg.direction === 'outbound' ? 'justify-end' : 'justify-start'}`}
-                                      >
-                                        <div
-                                          className={`max-w-[80%] rounded-lg px-3 py-2 ${
-                                            msg.direction === 'outbound'
-                                              ? 'bg-primary text-primary-foreground'
-                                              : 'bg-muted'
-                                          }`}
-                                        >
-                                          {msg.meta?.email?.subject && (
-                                            <p className="text-xs font-medium mb-1 opacity-80">
-                                              Subject: {msg.meta.email.subject}
-                                            </p>
-                                          )}
-                                          <p className="text-sm whitespace-pre-wrap">{msg.body}</p>
-                                          <p className={`text-xs mt-1 ${
-                                            msg.direction === 'outbound' ? 'opacity-70' : 'text-muted-foreground'
-                                          }`}>
-                                            {new Date(msg.dateAdded).toLocaleString()}
-                                            {msg.direction === 'outbound' && (
-                                              <span className="ml-2">
-                                                {msg.status === 'sent' ? '✓' : msg.status === 'delivered' ? '✓✓' : ''}
-                                              </span>
-                                            )}
-                                          </p>
-                                        </div>
-                                      </div>
-                                    ))}
+                        <div className="p-4 space-y-3">
+                          {/* Flatten all messages from all conversations and sort by date */}
+                          {conversations
+                            .flatMap(conv => conv.messages.map(msg => ({ ...msg, convType: conv.type })))
+                            .sort((a, b) => {
+                              const dateA = parseInt(a.dateAdded) || new Date(a.dateAdded).getTime()
+                              const dateB = parseInt(b.dateAdded) || new Date(b.dateAdded).getTime()
+                              return dateA - dateB
+                            })
+                            .map((msg) => (
+                              <div
+                                key={msg.id}
+                                className={`flex ${msg.direction === 'outbound' ? 'justify-end' : 'justify-start'}`}
+                              >
+                                <div
+                                  className={`max-w-[75%] rounded-lg px-3 py-2 shadow-sm ${
+                                    msg.direction === 'outbound'
+                                      ? 'bg-primary text-primary-foreground'
+                                      : 'bg-white border'
+                                  }`}
+                                >
+                                  {msg.meta?.email?.subject && (
+                                    <p className="text-xs font-medium mb-1 opacity-80">
+                                      Subject: {msg.meta.email.subject}
+                                    </p>
+                                  )}
+                                  <p className="text-sm whitespace-pre-wrap">{msg.body}</p>
+                                  <div className={`flex items-center gap-2 text-xs mt-1 ${
+                                    msg.direction === 'outbound' ? 'opacity-70' : 'text-muted-foreground'
+                                  }`}>
+                                    <span>{new Date(parseInt(msg.dateAdded) || msg.dateAdded).toLocaleString()}</span>
+                                    <span className="opacity-60">
+                                      {msg.convType === 'TYPE_EMAIL' ? '📧' : '💬'}
+                                    </span>
+                                    {msg.direction === 'outbound' && (
+                                      <span>
+                                        {msg.status === 'sent' ? '✓' : msg.status === 'delivered' ? '✓✓' : ''}
+                                      </span>
+                                    )}
                                   </div>
-                                )}
+                                </div>
                               </div>
-                            </div>
-                          ))}
+                            ))}
                         </div>
                       )}
                     </div>
                     
-                    {/* Message Composer */}
+                    {/* Message Composer - Fixed at bottom */}
                     {selectedContact && (
-                      <div className="mt-4">
+                      <div className="border-t bg-white flex-shrink-0">
                         <MessageComposer
                           contactId={selectedContact.ghlContactId}
                           contactPhone={selectedContact.phone}
                           contactEmail={selectedContact.email}
                           defaultType="SMS"
                           onMessageSent={() => {
-                            // Refresh conversations after sending
                             if (selectedContact) {
-                              fetchConversations(selectedContact.ghlContactId)
+                              fetchConversations(selectedContact.id)
                             }
                           }}
                         />
