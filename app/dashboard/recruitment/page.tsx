@@ -1240,7 +1240,7 @@ export default function RecruitmentPage() {
               <button
                 onClick={() => {
                   setActiveTab('conversations')
-                  if (selectedContact && conversations.length === 0) {
+                  if (selectedContact) {
                     fetchConversations(selectedContact.id)
                   }
                 }}

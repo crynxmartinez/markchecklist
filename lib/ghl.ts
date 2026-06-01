@@ -416,16 +416,20 @@ export async function fetchGHLMessages(
 
     if (!response.ok) {
       const errorText = await response.text()
-      console.error('GHL messages error:', errorText)
-      throw new Error(`Failed to fetch messages: ${response.status} ${response.statusText}`)
+      console.error('GHL messages error:', response.status, errorText)
+      // Return empty array instead of throwing to prevent breaking the UI
+      return []
     }
 
     const data = await response.json()
-    console.log('Messages fetched:', data.messages?.length || 0)
-    return data.messages || []
+    // Try different possible field names for messages
+    const messages = data.messages || data.data || data.items || []
+    console.log('Messages fetched:', messages.length, 'Raw data keys:', Object.keys(data))
+    return messages
   } catch (error) {
     console.error('Error fetching GHL messages:', error)
-    throw error
+    // Return empty array instead of throwing
+    return []
   }
 }
 
