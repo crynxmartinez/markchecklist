@@ -422,10 +422,24 @@ export async function fetchGHLMessages(
     }
 
     const data = await response.json()
-    // Try different possible field names for messages
-    const messages = data.messages || data.data || data.items || []
-    console.log('Messages fetched:', messages.length, 'Raw data keys:', Object.keys(data))
-    return messages
+    console.log('Raw GHL messages response keys:', Object.keys(data))
+    
+    // GHL returns nested structure: { messages: { lastMessageId, nextPage, messages: [...] } }
+    let messagesArray: GHLMessage[] = []
+    if (data.messages?.messages && Array.isArray(data.messages.messages)) {
+      // Nested structure: data.messages.messages
+      messagesArray = data.messages.messages
+    } else if (Array.isArray(data.messages)) {
+      // Direct array: data.messages
+      messagesArray = data.messages
+    } else if (Array.isArray(data.data)) {
+      messagesArray = data.data
+    } else if (Array.isArray(data.items)) {
+      messagesArray = data.items
+    }
+    
+    console.log('Messages fetched:', messagesArray.length)
+    return messagesArray
   } catch (error) {
     console.error('Error fetching GHL messages:', error)
     // Return empty array instead of throwing
