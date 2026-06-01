@@ -248,6 +248,9 @@ export default function RecruitmentPage() {
     pipeline?: string
     totalOpportunities?: number
     contactsUpdated?: number
+    contactsAdded?: number
+    contactsRemoved?: number
+    notesSynced?: number
     stagesMapped?: number
     error?: string
     availablePipelines?: string[]
@@ -603,7 +606,7 @@ export default function RecruitmentPage() {
         <div className="flex gap-2">
           <Button variant="outline" onClick={openImportDialog}>
             <Download className="mr-2 h-4 w-4" />
-            Import from GHL
+            Update Data from GHL
           </Button>
           <Button onClick={openCreateStageDialog}>
             <Plus className="mr-2 h-4 w-4" />
@@ -722,9 +725,9 @@ export default function RecruitmentPage() {
       <Dialog open={importDialogOpen} onOpenChange={setImportDialogOpen}>
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
-            <DialogTitle>Import from GoHighLevel</DialogTitle>
+            <DialogTitle>Update Data from GoHighLevel</DialogTitle>
             <DialogDescription>
-              Import opportunities from your GHL pipeline to populate contacts in stages
+              Sync opportunities from GHL: update existing contacts, add new ones, and sync notes
             </DialogDescription>
           </DialogHeader>
           
@@ -736,12 +739,14 @@ export default function RecruitmentPage() {
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">
-                    This will fetch opportunities from your GHL &quot;CHT Group Agent Recruiter&quot; pipeline 
-                    and update contacts to their corresponding stages.
+                    This will sync data from your GHL &quot;CHT Group Agent Recruiter&quot; pipeline:
                   </p>
-                  <p className="text-sm text-muted-foreground mt-2">
-                    <strong>Note:</strong> Stage names must match between GHL and your stages.
-                  </p>
+                  <ul className="text-sm text-muted-foreground mt-2 list-disc list-inside space-y-1">
+                    <li>Update existing contacts (name, email, phone, tags, stage)</li>
+                    <li>Add new contacts from GHL</li>
+                    <li>Sync opportunity notes</li>
+                    <li>Remove contacts no longer in pipeline</li>
+                  </ul>
                 </div>
               </div>
             )}
@@ -752,7 +757,7 @@ export default function RecruitmentPage() {
                   <Download className="h-8 w-8 text-blue-600" />
                 </div>
                 <div>
-                  <p className="font-medium">Importing from GHL...</p>
+                  <p className="font-medium">Syncing data from GHL...</p>
                   <p className="text-sm text-muted-foreground">This may take a moment</p>
                 </div>
               </div>
@@ -768,7 +773,7 @@ export default function RecruitmentPage() {
                       </svg>
                     </div>
                     <div className="text-center">
-                      <p className="font-medium text-green-600">Import Successful!</p>
+                      <p className="font-medium text-green-600">Sync Successful!</p>
                     </div>
                     <div className="bg-muted rounded-lg p-4 space-y-2">
                       <div className="flex justify-between text-sm">
@@ -781,11 +786,19 @@ export default function RecruitmentPage() {
                       </div>
                       <div className="flex justify-between text-sm">
                         <span className="text-muted-foreground">Contacts Updated</span>
-                        <span className="font-medium text-green-600">{importResult.contactsUpdated}</span>
+                        <span className="font-medium text-blue-600">{importResult.contactsUpdated}</span>
                       </div>
                       <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">Stages Mapped</span>
-                        <span className="font-medium">{importResult.stagesMapped}</span>
+                        <span className="text-muted-foreground">Contacts Added</span>
+                        <span className="font-medium text-green-600">{importResult.contactsAdded || 0}</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Contacts Removed</span>
+                        <span className="font-medium text-orange-600">{importResult.contactsRemoved || 0}</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Notes Synced</span>
+                        <span className="font-medium text-purple-600">{importResult.notesSynced || 0}</span>
                       </div>
                     </div>
                   </>

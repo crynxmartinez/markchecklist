@@ -88,6 +88,8 @@ model Note {
   contactId String
   contact   Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
   content   String
+  ghlNoteId String?  @unique
+  isFromGHL Boolean  @default(false)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }

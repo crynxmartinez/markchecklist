@@ -57,7 +57,6 @@ export async function POST(request: Request) {
     const stageMapping: Record<string, string> = {}
     
     for (const ghlStage of targetPipeline.stages) {
-      // Find matching stage by name (case-insensitive)
       const ourStage = ourStages.find(s => 
         s.name.toLowerCase().trim() === ghlStage.name.toLowerCase().trim()
       )
@@ -74,17 +73,20 @@ export async function POST(request: Request) {
     console.log('Fetching opportunities...')
     const opportunities = await fetchGHLOpportunities(locationId, targetPipeline.id, apiKey)
 
-    // Step 5: Group opportunities by stage for batch updates
-    const updatesByStage: Record<string, string[]> = {}
+    // Track stats
+    let contactsUpdated = 0
+    let contactsAdded = 0
+    let notesSynced = 0
     let noStageMatch = 0
-    let noContact = 0
 
+    // Collect all GHL contact IDs in pipeline for later removal check
+    const ghlContactIdsInPipeline: string[] = []
+
+    // Step 5: Process each opportunity
+    console.log('Processing opportunities...')
     for (const opp of opportunities) {
       const ghlContactId = opp.contact?.id
-      if (!ghlContactId) {
-        noContact++
-        continue
-      }
+      if (!ghlContactId) continue
 
       const ourStageId = stageMapping[opp.pipelineStageId]
       if (!ourStageId) {
@@ -92,26 +94,109 @@ export async function POST(request: Request) {
         continue
       }
 
-      if (!updatesByStage[ourStageId]) {
-        updatesByStage[ourStageId] = []
-      }
-      updatesByStage[ourStageId].push(ghlContactId)
-    }
+      ghlContactIdsInPipeline.push(ghlContactId)
 
-    // Step 6: Batch update contacts by stage (much faster!)
-    console.log('Batch updating contacts...')
-    let updated = 0
+      // Parse contact name
+      const contactName = opp.contact.name || ''
+      const nameParts = contactName.split(' ')
+      const firstName = nameParts[0] || null
+      const lastName = nameParts.slice(1).join(' ') || null
 
-    for (const [stageId, ghlContactIds] of Object.entries(updatesByStage)) {
-      const result = await prisma.contact.updateMany({
-        where: { 
-          ghlContactId: { in: ghlContactIds }
-        },
-        data: { recruitmentStage: stageId }
+      // Check if contact exists
+      const existingContact = await prisma.contact.findUnique({
+        where: { ghlContactId }
       })
-      updated += result.count
-      console.log(`Updated ${result.count} contacts to stage ${stageId}`)
+
+      if (existingContact) {
+        // Update existing contact
+        await prisma.contact.update({
+          where: { ghlContactId },
+          data: {
+            firstName: firstName || existingContact.firstName,
+            lastName: lastName || existingContact.lastName,
+            email: opp.contact.email || existingContact.email,
+            phone: opp.contact.phone || existingContact.phone,
+            tags: opp.contact.tags || existingContact.tags,
+            recruitmentStage: ourStageId,
+            lastUpdated: new Date()
+          }
+        })
+        contactsUpdated++
+
+        // Sync opportunity notes
+        if (opp.notes && opp.notes.length > 0) {
+          for (const noteContent of opp.notes) {
+            if (!noteContent || noteContent.trim() === '') continue
+            
+            // Create unique ID for this note (based on content hash)
+            const ghlNoteId = `opp_${opp.id}_${Buffer.from(noteContent).toString('base64').substring(0, 20)}`
+            
+            // Check if note already exists
+            const existingNote = await prisma.note.findUnique({
+              where: { ghlNoteId }
+            })
+
+            if (!existingNote) {
+              await prisma.note.create({
+                data: {
+                  contactId: existingContact.id,
+                  content: noteContent,
+                  ghlNoteId,
+                  isFromGHL: true
+                }
+              })
+              notesSynced++
+            }
+          }
+        }
+      } else {
+        // Create new contact
+        const newContact = await prisma.contact.create({
+          data: {
+            ghlContactId,
+            firstName,
+            lastName,
+            email: opp.contact.email || null,
+            phone: opp.contact.phone || null,
+            tags: opp.contact.tags || [],
+            recruitmentStage: ourStageId,
+            dateAdded: new Date(),
+            lastUpdated: new Date()
+          }
+        })
+        contactsAdded++
+
+        // Sync opportunity notes for new contact
+        if (opp.notes && opp.notes.length > 0) {
+          for (const noteContent of opp.notes) {
+            if (!noteContent || noteContent.trim() === '') continue
+            
+            const ghlNoteId = `opp_${opp.id}_${Buffer.from(noteContent).toString('base64').substring(0, 20)}`
+            
+            await prisma.note.create({
+              data: {
+                contactId: newContact.id,
+                content: noteContent,
+                ghlNoteId,
+                isFromGHL: true
+              }
+            })
+            notesSynced++
+          }
+        }
+      }
     }
+
+    // Step 6: Remove from recruitment - contacts no longer in GHL pipeline
+    console.log('Removing contacts no longer in pipeline...')
+    const removedResult = await prisma.contact.updateMany({
+      where: {
+        recruitmentStage: { not: null },
+        ghlContactId: { notIn: ghlContactIdsInPipeline }
+      },
+      data: { recruitmentStage: null }
+    })
+    const contactsRemoved = removedResult.count
 
     return NextResponse.json({
       success: true,
@@ -120,15 +205,17 @@ export async function POST(request: Request) {
       ourStages: ourStages.map(s => s.name),
       stagesMapped: Object.keys(stageMapping).length,
       totalOpportunities: opportunities.length,
-      contactsUpdated: updated,
+      contactsUpdated,
+      contactsAdded,
+      contactsRemoved,
+      notesSynced,
       noStageMatch,
-      noContact,
     })
   } catch (error) {
     console.error('Import error:', error)
     return NextResponse.json(
       { 
-        error: 'Failed to import opportunities', 
+        error: 'Failed to sync data from GHL', 
         details: error instanceof Error ? error.message : 'Unknown error' 
       },
       { status: 500 }
