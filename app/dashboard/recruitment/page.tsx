@@ -361,6 +361,7 @@ export default function RecruitmentPage() {
     contactsAdded?: number
     contactsRemoved?: number
     notesSynced?: number
+    stagesCreated?: number
     stagesMapped?: number
     error?: string
     availablePipelines?: string[]
@@ -1142,6 +1143,12 @@ export default function RecruitmentPage() {
                         <span className="text-muted-foreground">Notes Synced</span>
                         <span className="font-medium text-purple-600">{importResult.notesSynced || 0}</span>
                       </div>
+                      {(importResult.stagesCreated || 0) > 0 && (
+                        <div className="flex justify-between text-sm">
+                          <span className="text-muted-foreground">Stages Created</span>
+                          <span className="font-medium text-indigo-600">{importResult.stagesCreated}</span>
+                        </div>
+                      )}
                     </div>
                   </>
                 ) : (

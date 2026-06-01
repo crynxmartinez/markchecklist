@@ -47,14 +47,31 @@ export async function POST(request: Request) {
     console.log('GHL Stages:', targetPipeline.stages.map(s => s.name))
 
     // Step 2: Get our stages from database
-    const ourStages = await prisma.pipelineStage.findMany({
+    let ourStages = await prisma.pipelineStage.findMany({
       orderBy: { order: 'asc' }
     })
 
     console.log('Our stages:', ourStages.map(s => s.name))
 
+    // Colors to cycle through for new stages
+    const stageColors = [
+      '#6366f1', // indigo
+      '#8b5cf6', // violet
+      '#ec4899', // pink
+      '#f43f5e', // rose
+      '#f97316', // orange
+      '#eab308', // yellow
+      '#22c55e', // green
+      '#14b8a6', // teal
+      '#06b6d4', // cyan
+      '#3b82f6', // blue
+    ]
+
     // Step 3: Create a mapping from GHL stage ID to our stage ID (by name match)
+    // Auto-create missing stages
     const stageMapping: Record<string, string> = {}
+    let stagesCreated = 0
+    let nextOrder = ourStages.length > 0 ? Math.max(...ourStages.map(s => s.order)) + 1 : 0
     
     for (const ghlStage of targetPipeline.stages) {
       const ourStage = ourStages.find(s => 
@@ -65,8 +82,28 @@ export async function POST(request: Request) {
         stageMapping[ghlStage.id] = ourStage.id
         console.log(`Mapped: "${ghlStage.name}" -> "${ourStage.name}"`)
       } else {
-        console.log(`No match for GHL stage: "${ghlStage.name}"`)
+        // Auto-create the missing stage
+        console.log(`Creating missing stage: "${ghlStage.name}"`)
+        const colorIndex = (ourStages.length + stagesCreated) % stageColors.length
+        const newStage = await prisma.pipelineStage.create({
+          data: {
+            name: ghlStage.name,
+            order: nextOrder,
+            color: stageColors[colorIndex]
+          }
+        })
+        stageMapping[ghlStage.id] = newStage.id
+        stagesCreated++
+        nextOrder++
+        console.log(`Created stage: "${ghlStage.name}" with color ${stageColors[colorIndex]}`)
       }
+    }
+
+    // Refresh our stages list after creating new ones
+    if (stagesCreated > 0) {
+      ourStages = await prisma.pipelineStage.findMany({
+        orderBy: { order: 'asc' }
+      })
     }
 
     // Step 4: Fetch opportunities from GHL
@@ -77,7 +114,6 @@ export async function POST(request: Request) {
     let contactsUpdated = 0
     let contactsAdded = 0
     let notesSynced = 0
-    let noStageMatch = 0
 
     // Collect all GHL contact IDs in pipeline for later removal check
     const ghlContactIdsInPipeline: string[] = []
@@ -90,7 +126,7 @@ export async function POST(request: Request) {
 
       const ourStageId = stageMapping[opp.pipelineStageId]
       if (!ourStageId) {
-        noStageMatch++
+        // This shouldn't happen since we auto-create stages, but skip if it does
         continue
       }
 
@@ -209,7 +245,7 @@ export async function POST(request: Request) {
       contactsAdded,
       contactsRemoved,
       notesSynced,
-      noStageMatch,
+      stagesCreated,
     })
   } catch (error) {
     console.error('Import error:', error)
