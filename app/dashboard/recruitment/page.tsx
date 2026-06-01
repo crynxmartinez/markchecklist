@@ -1528,6 +1528,8 @@ export default function RecruitmentPage() {
                       <div className="mt-4">
                         <MessageComposer
                           contactId={selectedContact.ghlContactId}
+                          contactPhone={selectedContact.phone}
+                          contactEmail={selectedContact.email}
                           defaultType="SMS"
                           onMessageSent={() => {
                             // Refresh conversations after sending

@@ -376,6 +376,8 @@ export default function ConversationsPage() {
             {/* Message Composer */}
             <MessageComposer
               contactId={selectedConversation.contactId}
+              contactPhone={selectedConversation.phone}
+              contactEmail={selectedConversation.email}
               defaultType={selectedConversation.type === 'TYPE_EMAIL' ? 'Email' : 'SMS'}
               onMessageSent={() => {
                 // Refresh messages after sending
