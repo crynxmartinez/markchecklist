@@ -918,15 +918,15 @@ export default function RecruitmentPage() {
 
       {/* Manage Stages Modal */}
       <Dialog open={manageStagesOpen} onOpenChange={setManageStagesOpen}>
-        <DialogContent className="sm:max-w-[500px]">
-          <DialogHeader>
+        <DialogContent className="sm:max-w-[500px] max-h-[80vh] flex flex-col">
+          <DialogHeader className="flex-shrink-0">
             <DialogTitle>Manage Stages</DialogTitle>
             <DialogDescription>
               Drag to reorder, edit or delete stages
             </DialogDescription>
           </DialogHeader>
           
-          <div className="py-4">
+          <div className="py-4 flex-1 overflow-y-auto min-h-0">
             <DndContext
               sensors={sensors}
               collisionDetection={closestCorners}
@@ -998,7 +998,7 @@ export default function RecruitmentPage() {
             )}
           </div>
 
-          <DialogFooter>
+          <DialogFooter className="flex-shrink-0 border-t pt-4">
             {stageOrderChanged && (
               <Button onClick={handleSaveStageOrder} disabled={savingOrder}>
                 {savingOrder ? 'Saving...' : 'Save Order'}
