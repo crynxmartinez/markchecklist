@@ -213,7 +213,7 @@ export function MessageComposer({
                 <ChevronDown className="h-3 w-3" />
               </button>
               {showPhoneDropdown && phoneNumbers.length > 0 && (
-                <div className="absolute top-full left-0 mt-1 bg-white border rounded-md shadow-lg z-10 min-w-[180px]">
+                <div className="absolute top-full left-0 mt-1 bg-white border rounded-md shadow-lg z-10 min-w-[180px] max-h-[200px] overflow-y-auto">
                   {phoneNumbers.map((phone) => (
                     <button
                       key={phone.id}
@@ -240,7 +240,7 @@ export function MessageComposer({
                 <ChevronDown className="h-3 w-3" />
               </button>
               {showEmailDropdown && emailAddresses.length > 0 && (
-                <div className="absolute top-full left-0 mt-1 bg-white border rounded-md shadow-lg z-10 min-w-[220px]">
+                <div className="absolute top-full left-0 mt-1 bg-white border rounded-md shadow-lg z-10 min-w-[220px] max-h-[200px] overflow-y-auto">
                   {emailAddresses.map((email) => (
                     <button
                       key={email.id}
