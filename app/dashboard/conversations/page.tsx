@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { MessageSquare, Search, Mail, Phone, RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { MessageComposer } from '@/components/message-composer'
 
 interface Message {
   id: string
@@ -372,12 +373,17 @@ export default function ConversationsPage() {
               )}
             </div>
 
-            {/* Footer */}
-            <div className="p-4 border-t bg-background">
-              <p className="text-sm text-muted-foreground text-center">
-                View-only mode • Messages are synced from GoHighLevel
-              </p>
-            </div>
+            {/* Message Composer */}
+            <MessageComposer
+              contactId={selectedConversation.contactId}
+              defaultType={selectedConversation.type === 'TYPE_EMAIL' ? 'Email' : 'SMS'}
+              onMessageSent={() => {
+                // Refresh messages after sending
+                if (selectedConversation) {
+                  fetchMessages(selectedConversation.id)
+                }
+              }}
+            />
           </>
         )}
       </div>
