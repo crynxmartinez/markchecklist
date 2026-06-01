@@ -1200,7 +1200,7 @@ export default function RecruitmentPage() {
 
       {/* Contact Detail Dialog - GHL Style */}
       <Dialog open={contactDialogOpen} onOpenChange={setContactDialogOpen}>
-        <DialogContent className="w-[95vw] max-w-[1000px] h-[85vh] max-h-[800px] p-0 gap-0">
+        <DialogContent className="!w-[95vw] !max-w-[1000px] h-[85vh] max-h-[800px] p-0 gap-0">
           <div className="flex h-full">
             {/* Left Sidebar - Tabs */}
             <div className="w-48 border-r bg-muted/30 p-2 flex flex-col gap-1">
