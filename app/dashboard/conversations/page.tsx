@@ -145,7 +145,8 @@ export default function ConversationsPage() {
   }
 
   const formatDate = (dateStr: string) => {
-    const date = new Date(parseInt(dateStr) || dateStr)
+    const timestamp = parseInt(dateStr)
+    const date = new Date(!isNaN(timestamp) ? timestamp : dateStr)
     const now = new Date()
     const diff = now.getTime() - date.getTime()
     const days = Math.floor(diff / (1000 * 60 * 60 * 24))
@@ -257,7 +258,8 @@ export default function ConversationsPage() {
                     </div>
                   </div>
                 </button>
-              ))}
+                )
+              })}
             </div>
           )}
         </div>
