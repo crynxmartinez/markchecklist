@@ -12,9 +12,9 @@ export async function GET() {
       )
     }
 
-    // Fetch phone numbers from GHL
+    // Fetch active phone numbers from GHL Phone System API
     const response = await fetch(
-      `https://services.leadconnectorhq.com/locations/${locationId}/phone-numbers`,
+      `https://services.leadconnectorhq.com/phone-system/numbers/location/${locationId}`,
       {
         headers: {
           'Authorization': `Bearer ${apiKey}`,
@@ -24,17 +24,65 @@ export async function GET() {
     )
 
     if (!response.ok) {
-      console.error('Failed to fetch phone numbers:', response.status)
-      // Return default if API fails
+      const errorText = await response.text()
+      console.error('Failed to fetch phone numbers:', response.status, errorText)
+      
+      // Try alternative endpoint
+      const altResponse = await fetch(
+        `https://services.leadconnectorhq.com/locations/${locationId}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${apiKey}`,
+            'Version': '2021-04-15',
+          },
+        }
+      )
+      
+      if (altResponse.ok) {
+        const locationData = await altResponse.json()
+        const phones = []
+        
+        if (locationData.location?.phone) {
+          phones.push({ 
+            id: 'location', 
+            phoneNumber: locationData.location.phone, 
+            name: 'Main Line' 
+          })
+        }
+        
+        if (phones.length > 0) {
+          return NextResponse.json({ phoneNumbers: phones })
+        }
+      }
+      
+      // Return default if all fails
       return NextResponse.json({ 
-        phoneNumbers: [{ id: 'default', phoneNumber: process.env.GHL_DEFAULT_PHONE || '+1234567890', name: 'Default' }] 
+        phoneNumbers: [{ 
+          id: 'default', 
+          phoneNumber: process.env.GHL_DEFAULT_PHONE || '+1234567890', 
+          name: 'Default' 
+        }] 
       })
     }
 
     const data = await response.json()
-    return NextResponse.json({ phoneNumbers: data.phoneNumbers || data || [] })
+    
+    // Normalize the response
+    const phoneNumbers = (data.phoneNumbers || data.numbers || data || []).map((phone: any) => ({
+      id: phone.id || phone.phoneNumber,
+      phoneNumber: phone.phoneNumber || phone.phone || phone.number,
+      name: phone.name || phone.friendlyName || phone.label || ''
+    }))
+
+    return NextResponse.json({ phoneNumbers })
   } catch (error) {
     console.error('Error fetching phone numbers:', error)
-    return NextResponse.json({ phoneNumbers: [] })
+    return NextResponse.json({ 
+      phoneNumbers: [{ 
+        id: 'default', 
+        phoneNumber: process.env.GHL_DEFAULT_PHONE || '+1234567890', 
+        name: 'Default' 
+      }] 
+    })
   }
 }

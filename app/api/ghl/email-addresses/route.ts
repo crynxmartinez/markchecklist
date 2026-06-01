@@ -12,9 +12,9 @@ export async function GET() {
       )
     }
 
-    // Fetch custom email addresses from GHL
+    // Fetch users/staff from GHL
     const response = await fetch(
-      `https://services.leadconnectorhq.com/locations/${locationId}`,
+      `https://services.leadconnectorhq.com/users/?locationId=${locationId}`,
       {
         headers: {
           'Authorization': `Bearer ${apiKey}`,
@@ -23,36 +23,81 @@ export async function GET() {
       }
     )
 
-    if (!response.ok) {
-      console.error('Failed to fetch location:', response.status)
-      return NextResponse.json({ 
-        emailAddresses: [{ id: 'default', email: process.env.GHL_EMAIL_FROM || 'noreply@example.com', name: 'Default' }] 
-      })
+    const emails: { id: string; email: string; name: string }[] = []
+
+    if (response.ok) {
+      const data = await response.json()
+      const users = data.users || data || []
+      
+      // Extract email addresses from users
+      for (const user of users) {
+        if (user.email) {
+          const name = user.name || user.firstName 
+            ? `${user.firstName || ''} ${user.lastName || ''}`.trim() 
+            : user.email.split('@')[0]
+          
+          emails.push({
+            id: user.id || user.email,
+            email: user.email,
+            name: name || 'Staff'
+          })
+        }
+      }
+    } else {
+      console.error('Failed to fetch users:', response.status)
     }
 
-    const data = await response.json()
-    
-    // Extract email addresses from location data
-    const emails = []
-    
-    if (data.location?.email) {
-      emails.push({ id: 'location', email: data.location.email, name: 'Location Email' })
-    }
-    
-    if (data.location?.settings?.emailProvider?.supportEmail) {
-      emails.push({ id: 'support', email: data.location.settings.emailProvider.supportEmail, name: 'Support Email' })
+    // Also try to get location email as fallback
+    if (emails.length === 0) {
+      const locationResponse = await fetch(
+        `https://services.leadconnectorhq.com/locations/${locationId}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${apiKey}`,
+            'Version': '2021-04-15',
+          },
+        }
+      )
+
+      if (locationResponse.ok) {
+        const locationData = await locationResponse.json()
+        
+        if (locationData.location?.email) {
+          emails.push({ 
+            id: 'location', 
+            email: locationData.location.email, 
+            name: 'Location Email' 
+          })
+        }
+        
+        if (locationData.location?.settings?.emailProvider?.supportEmail) {
+          emails.push({ 
+            id: 'support', 
+            email: locationData.location.settings.emailProvider.supportEmail, 
+            name: 'Support Email' 
+          })
+        }
+      }
     }
 
     // Add default if no emails found
     if (emails.length === 0) {
-      emails.push({ id: 'default', email: process.env.GHL_EMAIL_FROM || 'noreply@example.com', name: 'Default' })
+      emails.push({ 
+        id: 'default', 
+        email: process.env.GHL_EMAIL_FROM || 'noreply@example.com', 
+        name: 'Default' 
+      })
     }
 
     return NextResponse.json({ emailAddresses: emails })
   } catch (error) {
     console.error('Error fetching email addresses:', error)
     return NextResponse.json({ 
-      emailAddresses: [{ id: 'default', email: process.env.GHL_EMAIL_FROM || 'noreply@example.com', name: 'Default' }] 
+      emailAddresses: [{ 
+        id: 'default', 
+        email: process.env.GHL_EMAIL_FROM || 'noreply@example.com', 
+        name: 'Default' 
+      }] 
     })
   }
 }
