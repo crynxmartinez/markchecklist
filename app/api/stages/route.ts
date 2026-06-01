@@ -7,7 +7,17 @@ export async function GET() {
       orderBy: { order: 'asc' },
     })
 
-    return NextResponse.json({ stages })
+    // Get contact counts for each stage
+    const stagesWithCounts = await Promise.all(
+      stages.map(async (stage) => {
+        const contactCount = await prisma.contact.count({
+          where: { recruitmentStage: stage.id }
+        })
+        return { ...stage, contactCount }
+      })
+    )
+
+    return NextResponse.json({ stages: stagesWithCounts })
   } catch (error) {
     console.error('Error fetching stages:', error)
     return NextResponse.json(

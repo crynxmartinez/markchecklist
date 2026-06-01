@@ -1,6 +1,42 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
+export async function GET(
+  request: Request,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const { id } = params
+
+    const stage = await prisma.pipelineStage.findUnique({
+      where: { id },
+    })
+
+    if (!stage) {
+      return NextResponse.json(
+        { error: 'Stage not found' },
+        { status: 404 }
+      )
+    }
+
+    // Get contact count for this stage
+    const contactCount = await prisma.contact.count({
+      where: { recruitmentStage: id }
+    })
+
+    return NextResponse.json({
+      ...stage,
+      contactCount
+    })
+  } catch (error) {
+    console.error('Error fetching stage:', error)
+    return NextResponse.json(
+      { error: 'Failed to fetch stage' },
+      { status: 500 }
+    )
+  }
+}
+
 export async function PUT(
   request: Request,
   { params }: { params: { id: string } }

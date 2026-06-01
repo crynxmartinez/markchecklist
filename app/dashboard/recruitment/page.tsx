@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { DndContext, DragEndEvent, DragOverlay, DragStartEvent, closestCorners, PointerSensor, useSensor, useSensors, useDroppable } from '@dnd-kit/core'
-import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
+import { SortableContext, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -19,7 +19,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { Mail, Phone, GripVertical, Plus, Trash2, Edit, MoreVertical, Download, CheckCircle2, Circle, Calendar, FileText, ListTodo, User, MessageSquare, Send } from 'lucide-react'
+import { Mail, Phone, GripVertical, Plus, Trash2, Edit, MoreVertical, Download, CheckCircle2, Circle, Calendar, FileText, ListTodo, User, MessageSquare, Send, Settings } from 'lucide-react'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -83,6 +83,7 @@ interface PipelineStage {
   name: string
   order: number
   color: string
+  contactCount?: number
 }
 
 interface KanbanColumn {
@@ -228,6 +229,115 @@ function DroppableColumn({ column, onEdit, onDelete, onContactClick }: {
   )
 }
 
+interface SortableStageItemProps {
+  stage: PipelineStage
+  isEditing: boolean
+  editName: string
+  editColor: string
+  colors: string[]
+  saving: boolean
+  onEditNameChange: (name: string) => void
+  onEditColorChange: (color: string) => void
+  onStartEdit: () => void
+  onSaveEdit: () => void
+  onCancelEdit: () => void
+  onDelete: () => void
+}
+
+function SortableStageItem({
+  stage,
+  isEditing,
+  editName,
+  editColor,
+  colors,
+  saving,
+  onEditNameChange,
+  onEditColorChange,
+  onStartEdit,
+  onSaveEdit,
+  onCancelEdit,
+  onDelete,
+}: SortableStageItemProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: stage.id })
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  }
+
+  if (isEditing) {
+    return (
+      <div className="p-3 border rounded-lg space-y-3 bg-muted/50">
+        <Input
+          value={editName}
+          onChange={(e) => onEditNameChange(e.target.value)}
+          placeholder="Stage name"
+          autoFocus
+        />
+        <div className="flex gap-2 flex-wrap">
+          {colors.map((color) => (
+            <button
+              key={color}
+              type="button"
+              className={`w-6 h-6 rounded-full border-2 transition-all ${
+                editColor === color ? 'border-black scale-110' : 'border-transparent'
+              }`}
+              style={{ backgroundColor: color }}
+              onClick={() => onEditColorChange(color)}
+            />
+          ))}
+        </div>
+        <div className="flex gap-2">
+          <Button size="sm" onClick={onSaveEdit} disabled={saving || !editName.trim()}>
+            {saving ? 'Saving...' : 'Save'}
+          </Button>
+          <Button size="sm" variant="outline" onClick={onCancelEdit}>
+            Cancel
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className="flex items-center gap-3 p-3 border rounded-lg bg-white hover:bg-muted/50 transition-colors"
+    >
+      <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing">
+        <GripVertical className="h-4 w-4 text-muted-foreground" />
+      </div>
+      <div
+        className="w-4 h-4 rounded-full flex-shrink-0"
+        style={{ backgroundColor: stage.color }}
+      />
+      <div className="flex-1 min-w-0">
+        <span className="font-medium">{stage.name}</span>
+      </div>
+      <Badge variant="secondary" className="flex-shrink-0">
+        {stage.contactCount || 0}
+      </Badge>
+      <div className="flex gap-1 flex-shrink-0">
+        <Button size="icon" variant="ghost" className="h-8 w-8" onClick={onStartEdit}>
+          <Edit className="h-4 w-4" />
+        </Button>
+        <Button size="icon" variant="ghost" className="h-8 w-8 text-red-600 hover:text-red-700" onClick={onDelete}>
+          <Trash2 className="h-4 w-4" />
+        </Button>
+      </div>
+    </div>
+  )
+}
+
 export default function RecruitmentPage() {
   const [stages, setStages] = useState<PipelineStage[]>([])
   const [contacts, setContacts] = useState<Contact[]>([])
@@ -267,6 +377,18 @@ export default function RecruitmentPage() {
   const [newTaskTitle, setNewTaskTitle] = useState('')
   const [newTaskDueDate, setNewTaskDueDate] = useState('')
   const [newNoteContent, setNewNoteContent] = useState('')
+  
+  // Manage Stages Modal
+  const [manageStagesOpen, setManageStagesOpen] = useState(false)
+  const [managedStages, setManagedStages] = useState<PipelineStage[]>([])
+  const [stageOrderChanged, setStageOrderChanged] = useState(false)
+  const [savingOrder, setSavingOrder] = useState(false)
+  const [addingNewStage, setAddingNewStage] = useState(false)
+  const [newStageName, setNewStageName] = useState('')
+  const [newStageColor, setNewStageColor] = useState('#6366f1')
+  const [editingStageInModal, setEditingStageInModal] = useState<string | null>(null)
+  const [editStageName, setEditStageName] = useState('')
+  const [editStageColor, setEditStageColor] = useState('')
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -431,6 +553,131 @@ export default function RecruitmentPage() {
   const openImportDialog = () => {
     setImportResult(null)
     setImportDialogOpen(true)
+  }
+
+  // Manage Stages Modal Functions
+  const openManageStages = () => {
+    setManagedStages([...stages])
+    setStageOrderChanged(false)
+    setAddingNewStage(false)
+    setEditingStageInModal(null)
+    setManageStagesOpen(true)
+  }
+
+  const handleStageReorder = (event: DragEndEvent) => {
+    const { active, over } = event
+    if (!over || active.id === over.id) return
+
+    const oldIndex = managedStages.findIndex(s => s.id === active.id)
+    const newIndex = managedStages.findIndex(s => s.id === over.id)
+
+    if (oldIndex !== -1 && newIndex !== -1) {
+      setManagedStages(arrayMove(managedStages, oldIndex, newIndex))
+      setStageOrderChanged(true)
+    }
+  }
+
+  const handleSaveStageOrder = async () => {
+    setSavingOrder(true)
+    try {
+      const stageIds = managedStages.map(s => s.id)
+      await fetch('/api/stages/reorder', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ stageIds }),
+      })
+      setStageOrderChanged(false)
+      await fetchData()
+    } catch (error) {
+      console.error('Error saving stage order:', error)
+      alert('Failed to save stage order')
+    } finally {
+      setSavingOrder(false)
+    }
+  }
+
+  const handleAddStageInModal = async () => {
+    if (!newStageName.trim()) return
+
+    setSaving(true)
+    try {
+      await fetch('/api/stages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: newStageName, color: newStageColor }),
+      })
+      setNewStageName('')
+      setNewStageColor('#6366f1')
+      setAddingNewStage(false)
+      await fetchData()
+      // Refresh managed stages
+      const res = await fetch('/api/stages')
+      const data = await res.json()
+      setManagedStages(data.stages || [])
+    } catch (error) {
+      console.error('Error adding stage:', error)
+      alert('Failed to add stage')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleEditStageInModal = async (stageId: string) => {
+    if (!editStageName.trim()) return
+
+    setSaving(true)
+    try {
+      await fetch(`/api/stages/${stageId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: editStageName, color: editStageColor }),
+      })
+      setEditingStageInModal(null)
+      await fetchData()
+      // Refresh managed stages
+      const res = await fetch('/api/stages')
+      const data = await res.json()
+      setManagedStages(data.stages || [])
+    } catch (error) {
+      console.error('Error updating stage:', error)
+      alert('Failed to update stage')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleDeleteStageInModal = async (stage: PipelineStage) => {
+    const contactCount = stage.contactCount || 0
+    
+    if (contactCount > 0) {
+      if (!confirm(`This stage has ${contactCount} contact${contactCount > 1 ? 's' : ''}. They will be removed from recruitment. Are you sure?`)) {
+        return
+      }
+    } else {
+      if (!confirm('Delete this stage?')) {
+        return
+      }
+    }
+
+    try {
+      await fetch(`/api/stages/${stage.id}`, {
+        method: 'DELETE',
+      })
+      await fetchData()
+      // Refresh managed stages
+      const res = await fetch('/api/stages')
+      const data = await res.json()
+      setManagedStages(data.stages || [])
+    } catch (error) {
+      console.error('Error deleting stage:', error)
+      alert('Failed to delete stage')
+    }
+  }
+
+  const startEditStage = (stage: PipelineStage) => {
+    setEditingStageInModal(stage.id)
+    setEditStageName(stage.name)
+    setEditStageColor(stage.color)
   }
 
   const handleImportFromGHL = async () => {
@@ -608,9 +855,9 @@ export default function RecruitmentPage() {
             <Download className="mr-2 h-4 w-4" />
             Update Data from GHL
           </Button>
-          <Button onClick={openCreateStageDialog}>
-            <Plus className="mr-2 h-4 w-4" />
-            Add Stage
+          <Button onClick={openManageStages}>
+            <Settings className="mr-2 h-4 w-4" />
+            Manage Stages
           </Button>
         </div>
       </div>
@@ -668,6 +915,101 @@ export default function RecruitmentPage() {
           ) : null}
         </DragOverlay>
       </DndContext>
+
+      {/* Manage Stages Modal */}
+      <Dialog open={manageStagesOpen} onOpenChange={setManageStagesOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Manage Stages</DialogTitle>
+            <DialogDescription>
+              Drag to reorder, edit or delete stages
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="py-4">
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCorners}
+              onDragEnd={handleStageReorder}
+            >
+              <SortableContext items={managedStages.map(s => s.id)} strategy={verticalListSortingStrategy}>
+                <div className="space-y-2">
+                  {managedStages.map((stage) => (
+                    <SortableStageItem
+                      key={stage.id}
+                      stage={stage}
+                      isEditing={editingStageInModal === stage.id}
+                      editName={editStageName}
+                      editColor={editStageColor}
+                      colors={colors}
+                      saving={saving}
+                      onEditNameChange={setEditStageName}
+                      onEditColorChange={setEditStageColor}
+                      onStartEdit={() => startEditStage(stage)}
+                      onSaveEdit={() => handleEditStageInModal(stage.id)}
+                      onCancelEdit={() => setEditingStageInModal(null)}
+                      onDelete={() => handleDeleteStageInModal(stage)}
+                    />
+                  ))}
+                </div>
+              </SortableContext>
+            </DndContext>
+
+            {/* Add New Stage */}
+            {addingNewStage ? (
+              <div className="mt-4 p-3 border rounded-lg space-y-3">
+                <Input
+                  value={newStageName}
+                  onChange={(e) => setNewStageName(e.target.value)}
+                  placeholder="Stage name"
+                  autoFocus
+                />
+                <div className="flex gap-2 flex-wrap">
+                  {colors.map((color) => (
+                    <button
+                      key={color}
+                      type="button"
+                      className={`w-6 h-6 rounded-full border-2 transition-all ${
+                        newStageColor === color ? 'border-black scale-110' : 'border-transparent'
+                      }`}
+                      style={{ backgroundColor: color }}
+                      onClick={() => setNewStageColor(color)}
+                    />
+                  ))}
+                </div>
+                <div className="flex gap-2">
+                  <Button size="sm" onClick={handleAddStageInModal} disabled={saving || !newStageName.trim()}>
+                    {saving ? 'Adding...' : 'Add'}
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => setAddingNewStage(false)}>
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <Button
+                variant="outline"
+                className="w-full mt-4"
+                onClick={() => setAddingNewStage(true)}
+              >
+                <Plus className="mr-2 h-4 w-4" />
+                Add Stage
+              </Button>
+            )}
+          </div>
+
+          <DialogFooter>
+            {stageOrderChanged && (
+              <Button onClick={handleSaveStageOrder} disabled={savingOrder}>
+                {savingOrder ? 'Saving...' : 'Save Order'}
+              </Button>
+            )}
+            <Button variant="outline" onClick={() => setManageStagesOpen(false)}>
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Stage Dialog */}
       <Dialog open={stageDialogOpen} onOpenChange={setStageDialogOpen}>
