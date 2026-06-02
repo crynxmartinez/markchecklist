@@ -1254,7 +1254,7 @@ export default function RecruitmentPage() {
             </div>
 
             {/* Right Content */}
-            <div className="flex-1 flex flex-col">
+            <div className="flex-1 flex flex-col overflow-hidden">
               {/* Header */}
               <div className="p-4 border-b">
                 {selectedContact && (
@@ -1279,7 +1279,7 @@ export default function RecruitmentPage() {
               </div>
 
               {/* Tab Content */}
-              <div className={`flex-1 ${activeTab === 'conversations' ? 'flex flex-col min-h-0' : 'overflow-y-auto p-4'}`}>
+              <div className={`flex-1 overflow-hidden ${activeTab === 'conversations' ? 'flex flex-col' : 'overflow-y-auto p-4'}`}>
                 {/* Details Tab */}
                 {activeTab === 'details' && selectedContact && (
                   <div className="space-y-4">
@@ -1461,7 +1461,7 @@ export default function RecruitmentPage() {
                 {activeTab === 'conversations' && (
                   <>
                     {/* Messages Area - Takes all available space */}
-                    <div className="flex-1 overflow-y-auto bg-gray-50 min-h-0">
+                    <div className="flex-1 overflow-y-auto bg-gray-50">
                       {loadingConversations ? (
                         <div className="flex items-center justify-center h-full py-8">
                           <p className="text-sm text-muted-foreground">Loading messages...</p>
@@ -1535,12 +1535,14 @@ export default function RecruitmentPage() {
                 )}
               </div>
 
-              {/* Footer */}
-              <div className="p-4 border-t flex justify-end">
-                <Button variant="outline" onClick={() => setContactDialogOpen(false)}>
-                  Close
-                </Button>
-              </div>
+              {/* Footer - Hide for conversations tab since composer is at bottom */}
+              {activeTab !== 'conversations' && (
+                <div className="p-4 border-t flex justify-end flex-shrink-0">
+                  <Button variant="outline" onClick={() => setContactDialogOpen(false)}>
+                    Close
+                  </Button>
+                </div>
+              )}
             </div>
           </div>
         </DialogContent>
