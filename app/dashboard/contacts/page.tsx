@@ -373,7 +373,7 @@ export default function ContactsPage() {
               <p className="text-muted-foreground">No contacts yet. Click "Sync from GHL" to import contacts.</p>
             </div>
           ) : (
-            <div className="max-h-[calc(100vh-400px)] overflow-auto border rounded-md">
+            <div className="max-h-[400px] overflow-auto border rounded-md">
               <Table>
                 <TableHeader className="sticky top-0 bg-background z-10">
                   <TableRow>
