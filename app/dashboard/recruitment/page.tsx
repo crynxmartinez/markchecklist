@@ -118,16 +118,16 @@ function ContactCard({ contact, onClick }: { contact: Contact; onClick?: () => v
     <div
       ref={setNodeRef}
       style={style}
-      className="bg-white rounded-lg border p-3 mb-2 hover:shadow-md transition-shadow"
+      {...attributes}
+      {...listeners}
+      className="bg-white rounded-lg border p-3 mb-2 hover:shadow-md transition-shadow cursor-grab active:cursor-grabbing"
+      onClick={onClick}
     >
       <div className="flex items-start gap-2">
-        <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing mt-1 flex-shrink-0">
+        <div className="mt-1 flex-shrink-0">
           <GripVertical className="h-4 w-4 text-muted-foreground" />
         </div>
-        <div 
-          className="flex-1 min-w-0 cursor-pointer" 
-          onClick={onClick}
-        >
+        <div className="flex-1 min-w-0">
           <h4 className="font-medium text-sm truncate">
             {contact.firstName || contact.lastName
               ? `${contact.firstName || ''} ${contact.lastName || ''}`.trim()
