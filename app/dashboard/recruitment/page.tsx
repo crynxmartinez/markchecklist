@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { DndContext, DragEndEvent, DragOverlay, DragStartEvent, closestCorners, PointerSensor, useSensor, useSensors, useDroppable } from '@dnd-kit/core'
 import { SortableContext, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable'
 import { useSortable } from '@dnd-kit/sortable'
@@ -376,6 +376,7 @@ export default function RecruitmentPage() {
   const [loadingTasks, setLoadingTasks] = useState(false)
   const [loadingNotes, setLoadingNotes] = useState(false)
   const [loadingConversations, setLoadingConversations] = useState(false)
+  const messagesEndRef = useRef<HTMLDivElement>(null)
   const [newTaskTitle, setNewTaskTitle] = useState('')
   const [newTaskDueDate, setNewTaskDueDate] = useState('')
   const [newNoteContent, setNewNoteContent] = useState('')
@@ -754,6 +755,10 @@ export default function RecruitmentPage() {
       const res = await fetch(`/api/contacts/${contactId}/conversations`)
       const data = await res.json()
       setConversations(data.conversations || [])
+      // Scroll to bottom after messages load
+      setTimeout(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+      }, 100)
     } catch (error) {
       console.error('Error fetching conversations:', error)
     } finally {
@@ -1511,6 +1516,7 @@ export default function RecruitmentPage() {
                                 </div>
                               </div>
                             ))}
+                          <div ref={messagesEndRef} />
                         </div>
                       )}
                     </div>
