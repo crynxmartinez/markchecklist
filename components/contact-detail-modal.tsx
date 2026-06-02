@@ -1,7 +1,8 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { Mail, Phone, Tag, Calendar, MessageSquare, FileText, ListTodo, Plus, ChevronRight, ChevronDown, CheckCircle2, Circle, Trash2, X, Loader2 } from 'lucide-react'
+import { Mail, Phone, Tag, Calendar, MessageSquare, FileText, ListTodo, Plus, ChevronRight, ChevronDown, CheckCircle2, Circle, Trash2, X, Loader2, Edit2, Save } from 'lucide-react'
+import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
@@ -107,6 +108,16 @@ export function ContactDetailModal({
   const [newNoteContent, setNewNoteContent] = useState('')
   const [newTag, setNewTag] = useState('')
   const [addingTag, setAddingTag] = useState(false)
+  
+  // Edit contact states
+  const [isEditing, setIsEditing] = useState(false)
+  const [editForm, setEditForm] = useState({
+    firstName: '',
+    lastName: '',
+    email: '',
+    phone: ''
+  })
+  const [savingContact, setSavingContact] = useState(false)
   
   // Collapsible states
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['tasks']))
@@ -367,6 +378,48 @@ export function ContactDetailModal({
     setExpandedSections(newExpanded)
   }
 
+  const startEditing = () => {
+    if (!contact) return
+    setEditForm({
+      firstName: contact.firstName || '',
+      lastName: contact.lastName || '',
+      email: contact.email || '',
+      phone: contact.phone || ''
+    })
+    setIsEditing(true)
+  }
+
+  const cancelEditing = () => {
+    setIsEditing(false)
+    setEditForm({ firstName: '', lastName: '', email: '', phone: '' })
+  }
+
+  const saveContact = async () => {
+    if (!contact) return
+    setSavingContact(true)
+    try {
+      const res = await fetch(`/api/contacts/${contact.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          firstName: editForm.firstName,
+          lastName: editForm.lastName,
+          email: editForm.email,
+          phone: editForm.phone,
+          tags: contact.tags
+        })
+      })
+      if (res.ok) {
+        setIsEditing(false)
+        onContactUpdated?.()
+      }
+    } catch (error) {
+      console.error('Error saving contact:', error)
+    } finally {
+      setSavingContact(false)
+    }
+  }
+
   const formatTime = (dateStr: string) => {
     const date = new Date(parseInt(dateStr) || dateStr)
     return date.toLocaleString('en-US', {
@@ -407,24 +460,87 @@ export function ContactDetailModal({
           {/* Main Content - 3 Panel Layout */}
           <div className="flex h-[calc(100%-65px)]">
             {/* Left Panel - Contact Info */}
-            <div className="w-[250px] border-r overflow-y-auto bg-muted/30 p-4 space-y-4">
+            <div className="w-[280px] border-r overflow-y-auto bg-muted/30 p-4 space-y-4">
               {/* Contact Info */}
-              <div className="space-y-2">
-                <h3 className="text-xs font-medium text-muted-foreground uppercase">Contact</h3>
-                {contact.email && (
-                  <div className="flex items-center gap-2 text-sm">
-                    <Mail className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                    <a href={`mailto:${contact.email}`} className="hover:underline truncate text-xs">
-                      {contact.email}
-                    </a>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xs font-medium text-muted-foreground uppercase">Contact Info</h3>
+                  {!isEditing ? (
+                    <Button variant="ghost" size="sm" className="h-6 px-2" onClick={startEditing}>
+                      <Edit2 className="h-3 w-3 mr-1" />
+                      <span className="text-xs">Edit</span>
+                    </Button>
+                  ) : (
+                    <div className="flex gap-1">
+                      <Button variant="ghost" size="sm" className="h-6 px-2" onClick={cancelEditing}>
+                        <X className="h-3 w-3" />
+                      </Button>
+                      <Button size="sm" className="h-6 px-2" onClick={saveContact} disabled={savingContact}>
+                        {savingContact ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
+                      </Button>
+                    </div>
+                  )}
+                </div>
+
+                {isEditing ? (
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <Label className="text-xs">First Name</Label>
+                        <Input
+                          value={editForm.firstName}
+                          onChange={(e) => setEditForm({ ...editForm, firstName: e.target.value })}
+                          className="h-8 text-xs"
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-xs">Last Name</Label>
+                        <Input
+                          value={editForm.lastName}
+                          onChange={(e) => setEditForm({ ...editForm, lastName: e.target.value })}
+                          className="h-8 text-xs"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <Label className="text-xs">Email</Label>
+                      <Input
+                        type="email"
+                        value={editForm.email}
+                        onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
+                        className="h-8 text-xs"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Phone</Label>
+                      <Input
+                        value={editForm.phone}
+                        onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
+                        className="h-8 text-xs"
+                      />
+                    </div>
                   </div>
-                )}
-                {contact.phone && (
-                  <div className="flex items-center gap-2 text-sm">
-                    <Phone className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                    <a href={`tel:${contact.phone}`} className="hover:underline text-xs">
-                      {contact.phone}
-                    </a>
+                ) : (
+                  <div className="space-y-2">
+                    {contact.email && (
+                      <div className="flex items-center gap-2 text-sm">
+                        <Mail className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                        <a href={`mailto:${contact.email}`} className="hover:underline truncate text-xs">
+                          {contact.email}
+                        </a>
+                      </div>
+                    )}
+                    {contact.phone && (
+                      <div className="flex items-center gap-2 text-sm">
+                        <Phone className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                        <a href={`tel:${contact.phone}`} className="hover:underline text-xs">
+                          {contact.phone}
+                        </a>
+                      </div>
+                    )}
+                    {!contact.email && !contact.phone && (
+                      <p className="text-xs text-muted-foreground italic">No contact info</p>
+                    )}
                   </div>
                 )}
               </div>
