@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { RefreshCw, Users, Mail, Phone, Tag, MessageSquare, Send, Plus, Edit, Trash2 } from 'lucide-react'
+import { RefreshCw, Users, Mail, Phone, Tag, MessageSquare, Send, Plus, Edit, Trash2, Search, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import {
@@ -50,6 +50,7 @@ export default function ContactsPage() {
   const [syncMessage, setSyncMessage] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage] = useState(50)
+  const [searchQuery, setSearchQuery] = useState('')
   
   // Contact Detail Modal state
   const [contactDetailOpen, setContactDetailOpen] = useState(false)
@@ -117,11 +118,23 @@ export default function ContactsPage() {
     fetchContacts()
   }, [])
 
+  // Search filtering
+  const filteredContacts = contacts.filter((contact) => {
+    if (!searchQuery.trim()) return true
+    const query = searchQuery.toLowerCase()
+    const fullName = `${contact.firstName || ''} ${contact.lastName || ''}`.toLowerCase()
+    return (
+      fullName.includes(query) ||
+      (contact.email?.toLowerCase().includes(query)) ||
+      (contact.phone?.includes(query))
+    )
+  })
+
   // Pagination calculations
-  const totalPages = Math.ceil(contacts.length / itemsPerPage)
+  const totalPages = Math.ceil(filteredContacts.length / itemsPerPage)
   const startIndex = (currentPage - 1) * itemsPerPage
   const endIndex = startIndex + itemsPerPage
-  const currentContacts = contacts.slice(startIndex, endIndex)
+  const currentContacts = filteredContacts.slice(startIndex, endIndex)
 
   const goToPage = (page: number) => {
     setCurrentPage(page)
@@ -364,10 +377,38 @@ export default function ContactsPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Contacts</CardTitle>
-          <CardDescription>
-            All contacts synced from GoHighLevel sub-accounts
-          </CardDescription>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>Contacts</CardTitle>
+              <CardDescription>
+                All contacts synced from GoHighLevel sub-accounts
+              </CardDescription>
+            </div>
+            {/* Search Bar */}
+            <div className="relative w-[350px]">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search by name, email, or phone..."
+                value={searchQuery}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value)
+                  setCurrentPage(1) // Reset to first page on search
+                }}
+                className="pl-9 pr-9"
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => {
+                    setSearchQuery('')
+                    setCurrentPage(1)
+                  }}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
           {loading ? (
@@ -376,6 +417,12 @@ export default function ContactsPage() {
             <div className="text-center py-8">
               <Users className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
               <p className="text-muted-foreground">No contacts yet. Click "Sync from GHL" to import contacts.</p>
+            </div>
+          ) : filteredContacts.length === 0 ? (
+            <div className="text-center py-8">
+              <Search className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+              <p className="text-muted-foreground">No contacts found matching "{searchQuery}"</p>
+              <Button variant="link" onClick={() => setSearchQuery('')}>Clear search</Button>
             </div>
           ) : (
             <div className="max-h-[400px] overflow-auto border rounded-md">
@@ -476,10 +523,11 @@ export default function ContactsPage() {
             </div>
           )}
           
-          {contacts.length > 0 && (
+          {filteredContacts.length > 0 && (
             <div className="flex items-center justify-between px-2 py-4">
               <div className="text-sm text-muted-foreground">
-                Showing {startIndex + 1} to {Math.min(endIndex, contacts.length)} of {contacts.length} contacts
+                Showing {startIndex + 1} to {Math.min(endIndex, filteredContacts.length)} of {filteredContacts.length} contacts
+                {searchQuery && ` (filtered from ${contacts.length})`}
               </div>
               <div className="flex items-center gap-2">
                 <Button
