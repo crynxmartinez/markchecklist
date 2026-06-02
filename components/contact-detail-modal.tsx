@@ -386,7 +386,7 @@ export function ContactDetailModal({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="!w-[98vw] !max-w-[1400px] !h-[90vh] !max-h-[900px] p-0 gap-0 !block overflow-hidden">
+        <DialogContent className="!w-[99vw] !max-w-[1800px] !h-[95vh] !max-h-[1000px] p-0 gap-0 !block overflow-hidden">
           {/* Header */}
           <div className="flex items-center justify-between p-4 border-b">
             <div className="flex items-center gap-3">
@@ -728,9 +728,6 @@ export function ContactDetailModal({
                   <div className="flex items-center gap-2">
                     <div className="w-4 h-4 rounded bg-gradient-to-r from-blue-500 to-purple-500" />
                     <span className="font-medium text-sm">Pipeline</span>
-                    {contactStage && (
-                      <Badge variant="secondary" className="text-xs">Active</Badge>
-                    )}
                   </div>
                   {expandedSections.has('pipeline') ? (
                     <ChevronDown className="h-4 w-4" />
@@ -739,41 +736,57 @@ export function ContactDetailModal({
                   )}
                 </button>
                 {expandedSections.has('pipeline') && (
-                  <div className="p-3 pt-0 space-y-3 max-h-[250px] overflow-y-auto">
-                    {pipelines.length === 0 ? (
-                      <p className="text-xs text-muted-foreground text-center py-2">No pipelines available</p>
-                    ) : (
-                      pipelines.map((pipeline) => (
-                        <div key={pipeline.id} className="space-y-1">
-                          <p className="text-xs font-medium text-muted-foreground">{pipeline.name}</p>
-                          <div className="space-y-1">
+                  <div className="p-3 pt-0 space-y-2">
+                    {/* Current Stage Display */}
+                    {(() => {
+                      const currentStage = pipelines
+                        .flatMap(p => p.stages)
+                        .find(s => s.id === contactStage?.stageId)
+                      
+                      return (
+                        <div className="space-y-2">
+                          <p className="text-xs text-muted-foreground">Current Stage</p>
+                          {currentStage ? (
+                            <div className="flex items-center gap-2 p-2 bg-primary/10 rounded border border-primary/20">
+                              <div
+                                className="w-3 h-3 rounded-full flex-shrink-0"
+                                style={{ backgroundColor: currentStage.color }}
+                              />
+                              <span className="text-sm font-medium">{currentStage.name}</span>
+                            </div>
+                          ) : (
+                            <p className="text-xs text-muted-foreground italic">Not in any stage</p>
+                          )}
+                        </div>
+                      )
+                    })()}
+
+                    {/* Stage Dropdown */}
+                    <div className="space-y-2">
+                      <p className="text-xs text-muted-foreground">Move to Stage</p>
+                      <select
+                        value={contactStage?.stageId || ''}
+                        onChange={(e) => {
+                          if (e.target.value) {
+                            handleStageChange(e.target.value)
+                          }
+                        }}
+                        className="w-full p-2 text-sm border rounded-md bg-background"
+                      >
+                        <option value="">Select a stage...</option>
+                        {pipelines.map((pipeline) => (
+                          <optgroup key={pipeline.id} label={pipeline.name}>
                             {pipeline.stages
                               .sort((a, b) => a.order - b.order)
-                              .map((stage) => {
-                                const isCurrentStage = contactStage?.stageId === stage.id
-                                return (
-                                  <button
-                                    key={stage.id}
-                                    onClick={() => handleStageChange(stage.id)}
-                                    className={`w-full flex items-center gap-2 p-2 rounded text-xs text-left hover:bg-muted transition-colors ${
-                                      isCurrentStage ? 'bg-primary/10 ring-1 ring-primary' : ''
-                                    }`}
-                                  >
-                                    <div
-                                      className="w-3 h-3 rounded-full flex-shrink-0"
-                                      style={{ backgroundColor: stage.color }}
-                                    />
-                                    <span className={isCurrentStage ? 'font-medium' : ''}>{stage.name}</span>
-                                    {isCurrentStage && (
-                                      <CheckCircle2 className="h-3 w-3 text-primary ml-auto" />
-                                    )}
-                                  </button>
-                                )
-                              })}
-                          </div>
-                        </div>
-                      ))
-                    )}
+                              .map((stage) => (
+                                <option key={stage.id} value={stage.id}>
+                                  {stage.name}
+                                </option>
+                              ))}
+                          </optgroup>
+                        ))}
+                      </select>
+                    </div>
                   </div>
                 )}
               </div>
