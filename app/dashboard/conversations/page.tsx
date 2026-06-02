@@ -161,8 +161,9 @@ export default function ConversationsPage() {
   return (
     <div className="h-[calc(100vh-4rem)] flex">
       {/* Left Panel - Conversations List */}
-      <div className="w-96 border-r flex flex-col bg-muted/30">
-        <div className="p-4 border-b">
+      <div className="w-96 border-r flex flex-col bg-muted/30 min-h-0">
+        {/* Fixed Header */}
+        <div className="p-4 border-b bg-muted/30 flex-shrink-0">
           <div className="flex items-center justify-between mb-3">
             <h1 className="text-xl font-bold">Conversations</h1>
             <Button variant="ghost" size="sm" onClick={fetchConversationsList} disabled={loading}>
@@ -208,7 +209,8 @@ export default function ConversationsPage() {
           </div>
         </div>
         
-        <div className="flex-1 overflow-y-auto">
+        {/* Scrollable Conversations List */}
+        <div className="flex-1 overflow-y-auto min-h-0">
           {loading ? (
             <p className="text-center text-muted-foreground py-8">Loading conversations from GHL...</p>
           ) : filteredConversations.length === 0 ? (
@@ -267,7 +269,7 @@ export default function ConversationsPage() {
       </div>
 
       {/* Right Panel - Messages View */}
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col min-h-0">
         {!selectedConversation ? (
           <div className="flex-1 flex items-center justify-center text-muted-foreground">
             <div className="text-center">
@@ -277,24 +279,24 @@ export default function ConversationsPage() {
           </div>
         ) : (
           <>
-            {/* Header */}
-            <div className="p-4 border-b flex items-center gap-3">
-              <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
+            {/* Fixed Header */}
+            <div className="p-4 border-b flex items-center gap-3 bg-background flex-shrink-0">
+              <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center flex-shrink-0">
                 <span className="text-sm font-medium text-primary">
                   {getInitials(selectedConversation.contactName || 'Unknown')}
                 </span>
               </div>
-              <div className="flex-1">
-                <h2 className="font-semibold">{selectedConversation.contactName || 'Unknown'}</h2>
+              <div className="flex-1 min-w-0">
+                <h2 className="font-semibold truncate">{selectedConversation.contactName || 'Unknown'}</h2>
                 <div className="flex items-center gap-3 text-xs text-muted-foreground">
                   {selectedConversation.email && (
-                    <span className="flex items-center gap-1">
-                      <Mail className="h-3 w-3" />
-                      {selectedConversation.email}
+                    <span className="flex items-center gap-1 truncate">
+                      <Mail className="h-3 w-3 flex-shrink-0" />
+                      <span className="truncate">{selectedConversation.email}</span>
                     </span>
                   )}
                   {selectedConversation.phone && (
-                    <span className="flex items-center gap-1">
+                    <span className="flex items-center gap-1 flex-shrink-0">
                       <Phone className="h-3 w-3" />
                       {selectedConversation.phone}
                     </span>
