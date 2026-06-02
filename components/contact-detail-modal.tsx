@@ -66,6 +66,13 @@ interface PipelineStage {
   id: string
   name: string
   color: string
+  order: number
+}
+
+interface Pipeline {
+  id: string
+  name: string
+  stages: PipelineStage[]
 }
 
 interface ContactDetailModalProps {
@@ -73,7 +80,6 @@ interface ContactDetailModalProps {
   onOpenChange: (open: boolean) => void
   contact: Contact | null
   onContactUpdated?: () => void
-  stages?: PipelineStage[]
 }
 
 export function ContactDetailModal({
@@ -81,12 +87,13 @@ export function ContactDetailModal({
   onOpenChange,
   contact,
   onContactUpdated,
-  stages = []
 }: ContactDetailModalProps) {
   // Data states
   const [tasks, setTasks] = useState<Task[]>([])
   const [notes, setNotes] = useState<Note[]>([])
   const [appointments, setAppointments] = useState<{ upcoming: Appointment[], past: Appointment[] }>({ upcoming: [], past: [] })
+  const [pipelines, setPipelines] = useState<Pipeline[]>([])
+  const [contactStage, setContactStage] = useState<{ pipelineId: string, stageId: string } | null>(null)
   const [messages, setMessages] = useState<Message[]>([])
   
   // Loading states
@@ -130,8 +137,35 @@ export function ContactDetailModal({
       fetchTasks(),
       fetchNotes(),
       fetchAppointments(),
-      fetchConversations()
+      fetchConversations(),
+      fetchPipelines(),
+      fetchContactStage()
     ])
+  }
+
+  const fetchPipelines = async () => {
+    try {
+      const res = await fetch('/api/pipelines')
+      const data = await res.json()
+      setPipelines(data.pipelines || [])
+    } catch (error) {
+      console.error('Error fetching pipelines:', error)
+    }
+  }
+
+  const fetchContactStage = async () => {
+    if (!contact) return
+    try {
+      const res = await fetch(`/api/contacts/${contact.id}`)
+      const data = await res.json()
+      if (data.contact?.recruitmentStage) {
+        setContactStage({ pipelineId: '', stageId: data.contact.recruitmentStage })
+      } else {
+        setContactStage(null)
+      }
+    } catch (error) {
+      console.error('Error fetching contact stage:', error)
+    }
   }
 
   const fetchTasks = async () => {
@@ -309,12 +343,15 @@ export function ContactDetailModal({
   const handleStageChange = async (newStageId: string) => {
     if (!contact) return
     try {
-      await fetch(`/api/contacts/${contact.id}/stage`, {
+      const res = await fetch(`/api/contacts/${contact.id}/stage`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ stage: newStageId })
       })
-      onContactUpdated?.()
+      if (res.ok) {
+        setContactStage({ pipelineId: '', stageId: newStageId })
+        onContactUpdated?.()
+      }
     } catch (error) {
       console.error('Error changing stage:', error)
     }
@@ -349,7 +386,7 @@ export function ContactDetailModal({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="!w-[95vw] !max-w-[1200px] !h-[85vh] !max-h-[800px] p-0 gap-0 !block overflow-hidden">
+        <DialogContent className="!w-[98vw] !max-w-[1400px] !h-[90vh] !max-h-[900px] p-0 gap-0 !block overflow-hidden">
           {/* Header */}
           <div className="flex items-center justify-between p-4 border-b">
             <div className="flex items-center gap-3">
@@ -683,46 +720,63 @@ export function ContactDetailModal({
               </div>
 
               {/* Pipeline Section */}
-              {stages.length > 0 && (
-                <div className="border-b">
-                  <button
-                    onClick={() => toggleSection('pipeline')}
-                    className="w-full flex items-center justify-between p-3 hover:bg-muted/50"
-                  >
-                    <div className="flex items-center gap-2">
-                      <div className="w-4 h-4 rounded bg-gradient-to-r from-blue-500 to-purple-500" />
-                      <span className="font-medium text-sm">Pipeline</span>
-                    </div>
-                    {expandedSections.has('pipeline') ? (
-                      <ChevronDown className="h-4 w-4" />
-                    ) : (
-                      <ChevronRight className="h-4 w-4" />
+              <div className="border-b">
+                <button
+                  onClick={() => toggleSection('pipeline')}
+                  className="w-full flex items-center justify-between p-3 hover:bg-muted/50"
+                >
+                  <div className="flex items-center gap-2">
+                    <div className="w-4 h-4 rounded bg-gradient-to-r from-blue-500 to-purple-500" />
+                    <span className="font-medium text-sm">Pipeline</span>
+                    {contactStage && (
+                      <Badge variant="secondary" className="text-xs">Active</Badge>
                     )}
-                  </button>
-                  {expandedSections.has('pipeline') && (
-                    <div className="p-3 pt-0 space-y-1">
-                      {stages.map((stage) => (
-                        <button
-                          key={stage.id}
-                          onClick={() => handleStageChange(stage.id)}
-                          className={`w-full flex items-center gap-2 p-2 rounded text-xs text-left hover:bg-muted ${
-                            contact.recruitmentStage === stage.id ? 'bg-muted ring-1 ring-primary' : ''
-                          }`}
-                        >
-                          <div
-                            className="w-3 h-3 rounded-full flex-shrink-0"
-                            style={{ backgroundColor: stage.color }}
-                          />
-                          <span>{stage.name}</span>
-                          {contact.recruitmentStage === stage.id && (
-                            <CheckCircle2 className="h-3 w-3 text-primary ml-auto" />
-                          )}
-                        </button>
-                      ))}
-                    </div>
+                  </div>
+                  {expandedSections.has('pipeline') ? (
+                    <ChevronDown className="h-4 w-4" />
+                  ) : (
+                    <ChevronRight className="h-4 w-4" />
                   )}
-                </div>
-              )}
+                </button>
+                {expandedSections.has('pipeline') && (
+                  <div className="p-3 pt-0 space-y-3 max-h-[250px] overflow-y-auto">
+                    {pipelines.length === 0 ? (
+                      <p className="text-xs text-muted-foreground text-center py-2">No pipelines available</p>
+                    ) : (
+                      pipelines.map((pipeline) => (
+                        <div key={pipeline.id} className="space-y-1">
+                          <p className="text-xs font-medium text-muted-foreground">{pipeline.name}</p>
+                          <div className="space-y-1">
+                            {pipeline.stages
+                              .sort((a, b) => a.order - b.order)
+                              .map((stage) => {
+                                const isCurrentStage = contactStage?.stageId === stage.id
+                                return (
+                                  <button
+                                    key={stage.id}
+                                    onClick={() => handleStageChange(stage.id)}
+                                    className={`w-full flex items-center gap-2 p-2 rounded text-xs text-left hover:bg-muted transition-colors ${
+                                      isCurrentStage ? 'bg-primary/10 ring-1 ring-primary' : ''
+                                    }`}
+                                  >
+                                    <div
+                                      className="w-3 h-3 rounded-full flex-shrink-0"
+                                      style={{ backgroundColor: stage.color }}
+                                    />
+                                    <span className={isCurrentStage ? 'font-medium' : ''}>{stage.name}</span>
+                                    {isCurrentStage && (
+                                      <CheckCircle2 className="h-3 w-3 text-primary ml-auto" />
+                                    )}
+                                  </button>
+                                )
+                              })}
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </DialogContent>
