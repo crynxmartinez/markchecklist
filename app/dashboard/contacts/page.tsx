@@ -68,7 +68,6 @@ export default function ContactsPage() {
     email: '',
     phone: '',
     tags: '',
-    source: '',
   })
   const [saving, setSaving] = useState(false)
 
@@ -181,7 +180,7 @@ export default function ContactsPage() {
       if (data.success) {
         alert('Contact created successfully!')
         setCreateDialogOpen(false)
-        setFormData({ firstName: '', lastName: '', email: '', phone: '', tags: '', source: '' })
+        setFormData({ firstName: '', lastName: '', email: '', phone: '', tags: '' })
         await fetchContacts()
       } else {
         alert(`Failed to create contact: ${data.error}`)
@@ -277,7 +276,6 @@ export default function ContactsPage() {
       email: contact.email || '',
       phone: contact.phone || '',
       tags: contact.tags.join(', '),
-      source: contact.source || '',
     })
     setEditDialogOpen(true)
   }
@@ -384,7 +382,6 @@ export default function ContactsPage() {
                     <TableHead>Email</TableHead>
                     <TableHead>Phone</TableHead>
                     <TableHead>Tags</TableHead>
-                    <TableHead>Source</TableHead>
                     <TableHead>Sub Account</TableHead>
                     <TableHead>Last Updated</TableHead>
                     <TableHead>Actions</TableHead>
@@ -424,7 +421,6 @@ export default function ContactsPage() {
                         )}
                       </div>
                     </TableCell>
-                    <TableCell>{contact.source || 'N/A'}</TableCell>
                     <TableCell>
                       <Badge variant="outline" className="text-xs">
                         {contact.subAccount || 'N/A'}
@@ -619,14 +615,6 @@ export default function ContactsPage() {
                 placeholder="tag1, tag2, tag3"
               />
             </div>
-            <div className="grid gap-2">
-              <Label htmlFor="source">Source</Label>
-              <Input
-                id="source"
-                value={formData.source}
-                onChange={(e) => setFormData({ ...formData, source: e.target.value })}
-              />
-            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setCreateDialogOpen(false)}>
@@ -691,14 +679,6 @@ export default function ContactsPage() {
                 value={formData.tags}
                 onChange={(e) => setFormData({ ...formData, tags: e.target.value })}
                 placeholder="tag1, tag2, tag3"
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="edit-source">Source</Label>
-              <Input
-                id="edit-source"
-                value={formData.source}
-                onChange={(e) => setFormData({ ...formData, source: e.target.value })}
               />
             </div>
           </div>
