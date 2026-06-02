@@ -159,11 +159,11 @@ export default function ConversationsPage() {
   }
 
   return (
-    <div className="h-[calc(100vh-4rem)] flex">
+    <div className="h-[calc(100vh-4rem)] flex overflow-hidden">
       {/* Left Panel - Conversations List */}
-      <div className="w-96 border-r flex flex-col bg-muted/30 min-h-0">
+      <div className="w-96 border-r flex flex-col bg-muted/30 h-full overflow-hidden">
         {/* Fixed Header */}
-        <div className="p-4 border-b bg-muted/30 flex-shrink-0">
+        <div className="p-4 border-b bg-muted/30 flex-shrink-0 z-10">
           <div className="flex items-center justify-between mb-3">
             <h1 className="text-xl font-bold">Conversations</h1>
             <Button variant="ghost" size="sm" onClick={fetchConversationsList} disabled={loading}>
@@ -210,7 +210,7 @@ export default function ConversationsPage() {
         </div>
         
         {/* Scrollable Conversations List */}
-        <div className="flex-1 overflow-y-auto min-h-0">
+        <div className="flex-1 overflow-y-auto overflow-x-hidden">
           {loading ? (
             <p className="text-center text-muted-foreground py-8">Loading conversations from GHL...</p>
           ) : filteredConversations.length === 0 ? (
@@ -269,7 +269,7 @@ export default function ConversationsPage() {
       </div>
 
       {/* Right Panel - Messages View */}
-      <div className="flex-1 flex flex-col min-h-0">
+      <div className="flex-1 flex flex-col h-full overflow-hidden">
         {!selectedConversation ? (
           <div className="flex-1 flex items-center justify-center text-muted-foreground">
             <div className="text-center">
