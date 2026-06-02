@@ -2,6 +2,34 @@ import { NextResponse } from 'next/server'
 import { updateGHLContact, deleteGHLContact } from '@/lib/ghl'
 import { prisma } from '@/lib/prisma'
 
+export async function GET(
+  request: Request,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const { id } = params
+
+    const contact = await prisma.contact.findUnique({
+      where: { id },
+    })
+
+    if (!contact) {
+      return NextResponse.json(
+        { error: 'Contact not found' },
+        { status: 404 }
+      )
+    }
+
+    return NextResponse.json({ contact })
+  } catch (error) {
+    console.error('Error fetching contact:', error)
+    return NextResponse.json(
+      { error: 'Failed to fetch contact' },
+      { status: 500 }
+    )
+  }
+}
+
 export async function PUT(
   request: Request,
   { params }: { params: { id: string } }

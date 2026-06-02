@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { RefreshCw, Users, Mail, Phone, Tag, MessageSquare, Send, Plus, Edit, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -43,6 +44,7 @@ interface Contact {
 }
 
 export default function ContactsPage() {
+  const router = useRouter()
   const [contacts, setContacts] = useState<Contact[]>([])
   const [loading, setLoading] = useState(true)
   const [syncing, setSyncing] = useState(false)
@@ -389,8 +391,12 @@ export default function ContactsPage() {
                 </TableHeader>
                 <TableBody>
                 {currentContacts.map((contact) => (
-                  <TableRow key={contact.id}>
-                    <TableCell>
+                  <TableRow 
+                    key={contact.id} 
+                    className="cursor-pointer hover:bg-muted/50"
+                    onClick={() => router.push(`/dashboard/contacts/${contact.id}`)}
+                  >
+                    <TableCell onClick={(e) => e.stopPropagation()}>
                       <Checkbox
                         checked={selectedContacts.has(contact.id)}
                         onCheckedChange={() => toggleContactSelection(contact.id)}
@@ -431,12 +437,15 @@ export default function ContactsPage() {
                         ? new Date(contact.lastUpdated).toLocaleDateString()
                         : 'N/A'}
                     </TableCell>
-                    <TableCell>
+                    <TableCell onClick={(e) => e.stopPropagation()}>
                       <div className="flex gap-2">
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={() => openMessageDialog(contact, 'sms')}
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            openMessageDialog(contact, 'sms')
+                          }}
                           disabled={!contact.phone}
                         >
                           <MessageSquare className="h-4 w-4" />
@@ -444,7 +453,10 @@ export default function ContactsPage() {
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={() => openMessageDialog(contact, 'email')}
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            openMessageDialog(contact, 'email')
+                          }}
                           disabled={!contact.email}
                         >
                           <Mail className="h-4 w-4" />
