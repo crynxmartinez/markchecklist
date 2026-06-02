@@ -1200,8 +1200,8 @@ export default function RecruitmentPage() {
 
       {/* Contact Detail Dialog - GHL Style */}
       <Dialog open={contactDialogOpen} onOpenChange={setContactDialogOpen}>
-        <DialogContent className="!w-[95vw] !max-w-[1000px] !h-[85vh] !max-h-[800px] p-0 gap-0 !flex !flex-col overflow-hidden">
-          <div className="flex flex-1 min-h-0">
+        <DialogContent className="!w-[95vw] !max-w-[1000px] !h-[85vh] !max-h-[800px] p-0 gap-0 !block overflow-hidden">
+          <div className="flex h-full">
             {/* Left Sidebar - Tabs */}
             <div className="w-48 border-r bg-muted/30 p-2 flex flex-col gap-1">
               <button
@@ -1254,7 +1254,7 @@ export default function RecruitmentPage() {
             </div>
 
             {/* Right Content */}
-            <div className="flex-1 flex flex-col overflow-hidden">
+            <div className="flex-1 flex flex-col overflow-hidden min-h-0">
               {/* Header */}
               <div className="p-4 border-b">
                 {selectedContact && (
@@ -1279,7 +1279,7 @@ export default function RecruitmentPage() {
               </div>
 
               {/* Tab Content */}
-              <div className={`flex-1 overflow-hidden ${activeTab === 'conversations' ? 'flex flex-col' : 'overflow-y-auto p-4'}`}>
+              <div className={`flex-1 min-h-0 ${activeTab === 'conversations' ? 'flex flex-col overflow-hidden' : 'overflow-y-auto p-4'}`}>
                 {/* Details Tab */}
                 {activeTab === 'details' && selectedContact && (
                   <div className="space-y-4">
@@ -1461,7 +1461,7 @@ export default function RecruitmentPage() {
                 {activeTab === 'conversations' && (
                   <>
                     {/* Messages Area - Takes all available space */}
-                    <div className="flex-1 overflow-y-auto bg-gray-50">
+                    <div className="flex-1 min-h-0 overflow-y-auto bg-gray-50">
                       {loadingConversations ? (
                         <div className="flex items-center justify-center h-full py-8">
                           <p className="text-sm text-muted-foreground">Loading messages...</p>
