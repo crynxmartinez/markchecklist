@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
 import { RefreshCw, Users, Mail, Phone, Tag, MessageSquare, Send, Plus, Edit, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -26,6 +25,7 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { Checkbox } from '@/components/ui/checkbox'
+import { ContactDetailModal } from '@/components/contact-detail-modal'
 
 interface Contact {
   id: string
@@ -44,7 +44,6 @@ interface Contact {
 }
 
 export default function ContactsPage() {
-  const router = useRouter()
   const [contacts, setContacts] = useState<Contact[]>([])
   const [loading, setLoading] = useState(true)
   const [syncing, setSyncing] = useState(false)
@@ -52,6 +51,10 @@ export default function ContactsPage() {
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage] = useState(50)
   
+  // Contact Detail Modal state
+  const [contactDetailOpen, setContactDetailOpen] = useState(false)
+  const [viewingContact, setViewingContact] = useState<Contact | null>(null)
+
   // Messaging state
   const [messageDialogOpen, setMessageDialogOpen] = useState(false)
   const [messageType, setMessageType] = useState<'sms' | 'email'>('sms')
@@ -394,7 +397,10 @@ export default function ContactsPage() {
                   <TableRow 
                     key={contact.id} 
                     className="cursor-pointer hover:bg-muted/50"
-                    onClick={() => router.push(`/dashboard/contacts/${contact.id}`)}
+                    onClick={() => {
+                      setViewingContact(contact)
+                      setContactDetailOpen(true)
+                    }}
                   >
                     <TableCell onClick={(e) => e.stopPropagation()}>
                       <Checkbox
@@ -704,6 +710,21 @@ export default function ContactsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Contact Detail Modal */}
+      <ContactDetailModal
+        open={contactDetailOpen}
+        onOpenChange={setContactDetailOpen}
+        contact={viewingContact}
+        onContactUpdated={() => {
+          fetchContacts()
+          // Refresh the viewing contact data
+          if (viewingContact) {
+            const updated = contacts.find(c => c.id === viewingContact.id)
+            if (updated) setViewingContact(updated)
+          }
+        }}
+      />
     </div>
   )
 }
