@@ -375,21 +375,22 @@ export default function ContactsPage() {
               <p className="text-muted-foreground">No contacts yet. Click "Sync from GHL" to import contacts.</p>
             </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-12"></TableHead>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Phone</TableHead>
-                  <TableHead>Tags</TableHead>
-                  <TableHead>Source</TableHead>
-                  <TableHead>Sub Account</TableHead>
-                  <TableHead>Last Updated</TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
+            <div className="max-h-[calc(100vh-400px)] overflow-auto border rounded-md">
+              <Table>
+                <TableHeader className="sticky top-0 bg-background z-10">
+                  <TableRow>
+                    <TableHead className="w-12"></TableHead>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Email</TableHead>
+                    <TableHead>Phone</TableHead>
+                    <TableHead>Tags</TableHead>
+                    <TableHead>Source</TableHead>
+                    <TableHead>Sub Account</TableHead>
+                    <TableHead>Last Updated</TableHead>
+                    <TableHead>Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
                 {currentContacts.map((contact) => (
                   <TableRow key={contact.id}>
                     <TableCell>
@@ -457,7 +458,8 @@ export default function ContactsPage() {
                   </TableRow>
                 ))}
               </TableBody>
-            </Table>
+              </Table>
+            </div>
           )}
           
           {contacts.length > 0 && (
