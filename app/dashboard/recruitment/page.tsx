@@ -27,6 +27,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { MessageComposer } from '@/components/message-composer'
+import { ScheduleAppointmentModal } from '@/components/schedule-appointment-modal'
 
 interface Contact {
   id: string
@@ -77,6 +78,17 @@ interface Conversation {
   lastMessageBody?: string
   lastMessageDate?: string
   messages: Message[]
+}
+
+interface Appointment {
+  id: string
+  title?: string
+  startTime: string
+  endTime: string
+  status?: string
+  calendarId?: string
+  calendarName?: string
+  notes?: string
 }
 
 interface PipelineStage {
@@ -369,13 +381,16 @@ export default function RecruitmentPage() {
   } | null>(null)
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null)
   const [contactDialogOpen, setContactDialogOpen] = useState(false)
-  const [activeTab, setActiveTab] = useState<'details' | 'tasks' | 'notes' | 'conversations'>('details')
+  const [activeTab, setActiveTab] = useState<'details' | 'tasks' | 'notes' | 'appointments' | 'conversations'>('details')
   const [tasks, setTasks] = useState<Task[]>([])
   const [notes, setNotes] = useState<Note[]>([])
   const [conversations, setConversations] = useState<Conversation[]>([])
+  const [appointments, setAppointments] = useState<{ upcoming: Appointment[], past: Appointment[] }>({ upcoming: [], past: [] })
   const [loadingTasks, setLoadingTasks] = useState(false)
   const [loadingNotes, setLoadingNotes] = useState(false)
   const [loadingConversations, setLoadingConversations] = useState(false)
+  const [loadingAppointments, setLoadingAppointments] = useState(false)
+  const [scheduleModalOpen, setScheduleModalOpen] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const [newTaskTitle, setNewTaskTitle] = useState('')
   const [newTaskDueDate, setNewTaskDueDate] = useState('')
@@ -763,6 +778,22 @@ export default function RecruitmentPage() {
       console.error('Error fetching conversations:', error)
     } finally {
       setLoadingConversations(false)
+    }
+  }
+
+  const fetchAppointments = async (contactId: string) => {
+    setLoadingAppointments(true)
+    try {
+      const res = await fetch(`/api/contacts/${contactId}/appointments`)
+      const data = await res.json()
+      setAppointments({
+        upcoming: data.upcoming || [],
+        past: data.past || []
+      })
+    } catch (error) {
+      console.error('Error fetching appointments:', error)
+    } finally {
+      setLoadingAppointments(false)
     }
   }
 
@@ -1244,6 +1275,25 @@ export default function RecruitmentPage() {
               </button>
               <button
                 onClick={() => {
+                  setActiveTab('appointments')
+                  if (selectedContact) {
+                    fetchAppointments(selectedContact.id)
+                  }
+                }}
+                className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm text-left transition-colors ${
+                  activeTab === 'appointments' ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'
+                }`}
+              >
+                <Calendar className="h-4 w-4" />
+                Appointments
+                {(appointments.upcoming.length + appointments.past.length) > 0 && (
+                  <Badge variant="secondary" className="ml-auto text-xs">
+                    {appointments.upcoming.length + appointments.past.length}
+                  </Badge>
+                )}
+              </button>
+              <button
+                onClick={() => {
                   setActiveTab('conversations')
                   if (selectedContact) {
                     fetchConversations(selectedContact.id)
@@ -1462,6 +1512,117 @@ export default function RecruitmentPage() {
                   </div>
                 )}
 
+                {/* Appointments Tab */}
+                {activeTab === 'appointments' && (
+                  <div className="space-y-4">
+                    {/* Schedule Button */}
+                    <Button 
+                      onClick={() => setScheduleModalOpen(true)} 
+                      className="w-full"
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Schedule Appointment
+                    </Button>
+
+                    {loadingAppointments ? (
+                      <p className="text-sm text-muted-foreground text-center py-8">Loading appointments...</p>
+                    ) : appointments.upcoming.length === 0 && appointments.past.length === 0 ? (
+                      <div className="text-center py-8">
+                        <Calendar className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
+                        <p className="text-sm text-muted-foreground">No appointments scheduled</p>
+                      </div>
+                    ) : (
+                      <>
+                        {/* Upcoming Appointments */}
+                        {appointments.upcoming.length > 0 && (
+                          <div>
+                            <h4 className="text-sm font-medium text-green-600 mb-2 flex items-center gap-2">
+                              <div className="w-2 h-2 rounded-full bg-green-500" />
+                              Upcoming
+                            </h4>
+                            <div className="space-y-2">
+                              {appointments.upcoming.map((apt) => (
+                                <div key={apt.id} className="p-3 rounded-lg border bg-green-50 border-green-200">
+                                  <div className="flex items-start justify-between">
+                                    <div>
+                                      <p className="font-medium text-sm">{apt.title || 'Appointment'}</p>
+                                      <p className="text-sm text-muted-foreground mt-1">
+                                        {new Date(apt.startTime).toLocaleDateString('en-US', {
+                                          weekday: 'short',
+                                          month: 'short',
+                                          day: 'numeric',
+                                          year: 'numeric'
+                                        })}
+                                        {' • '}
+                                        {new Date(apt.startTime).toLocaleTimeString('en-US', {
+                                          hour: 'numeric',
+                                          minute: '2-digit'
+                                        })}
+                                      </p>
+                                      {apt.calendarName && (
+                                        <p className="text-xs text-muted-foreground mt-1">
+                                          📅 {apt.calendarName}
+                                        </p>
+                                      )}
+                                    </div>
+                                    {apt.status && (
+                                      <Badge variant={apt.status === 'confirmed' ? 'default' : 'secondary'} className="text-xs">
+                                        {apt.status}
+                                      </Badge>
+                                    )}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Past Appointments */}
+                        {appointments.past.length > 0 && (
+                          <div>
+                            <h4 className="text-sm font-medium text-muted-foreground mb-2 flex items-center gap-2">
+                              <div className="w-2 h-2 rounded-full bg-gray-400" />
+                              Past
+                            </h4>
+                            <div className="space-y-2">
+                              {appointments.past.slice(0, 5).map((apt) => (
+                                <div key={apt.id} className="p-3 rounded-lg border bg-gray-50">
+                                  <div className="flex items-start justify-between">
+                                    <div>
+                                      <p className="font-medium text-sm text-muted-foreground">{apt.title || 'Appointment'}</p>
+                                      <p className="text-sm text-muted-foreground mt-1">
+                                        {new Date(apt.startTime).toLocaleDateString('en-US', {
+                                          weekday: 'short',
+                                          month: 'short',
+                                          day: 'numeric',
+                                          year: 'numeric'
+                                        })}
+                                        {' • '}
+                                        {new Date(apt.startTime).toLocaleTimeString('en-US', {
+                                          hour: 'numeric',
+                                          minute: '2-digit'
+                                        })}
+                                      </p>
+                                    </div>
+                                    <Badge variant="outline" className="text-xs">
+                                      {apt.status || 'completed'}
+                                    </Badge>
+                                  </div>
+                                </div>
+                              ))}
+                              {appointments.past.length > 5 && (
+                                <p className="text-xs text-muted-foreground text-center">
+                                  +{appointments.past.length - 5} more past appointments
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                )}
+
                 {/* Conversations Tab */}
                 {activeTab === 'conversations' && (
                   <>
@@ -1553,6 +1714,23 @@ export default function RecruitmentPage() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Schedule Appointment Modal */}
+      {selectedContact && (
+        <ScheduleAppointmentModal
+          open={scheduleModalOpen}
+          onOpenChange={setScheduleModalOpen}
+          contactId={selectedContact.id}
+          contactName={
+            selectedContact.firstName || selectedContact.lastName
+              ? `${selectedContact.firstName || ''} ${selectedContact.lastName || ''}`.trim()
+              : 'Contact'
+          }
+          onAppointmentCreated={() => {
+            fetchAppointments(selectedContact.id)
+          }}
+        />
+      )}
     </div>
   )
 }
