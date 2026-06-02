@@ -1486,20 +1486,20 @@ export default function RecruitmentPage() {
                                 className={`flex ${msg.direction === 'outbound' ? 'justify-end' : 'justify-start'}`}
                               >
                                 <div
-                                  className={`max-w-[75%] rounded-xl px-4 py-2 shadow-sm ${
+                                  className={`max-w-[75%] rounded-2xl px-4 py-3 ${
                                     msg.direction === 'outbound'
-                                      ? 'bg-primary text-primary-foreground'
-                                      : 'bg-white border'
+                                      ? 'bg-blue-600 text-white'
+                                      : 'bg-white border border-gray-200 shadow-sm'
                                   }`}
                                 >
                                   {msg.meta?.email?.subject && (
-                                    <p className="text-xs font-semibold mb-1 opacity-90">
+                                    <p className={`text-xs font-semibold mb-2 ${msg.direction === 'outbound' ? 'text-blue-100' : 'text-gray-500'}`}>
                                       📧 {msg.meta.email.subject}
                                     </p>
                                   )}
-                                  <p className="text-sm whitespace-pre-wrap">{msg.body}</p>
+                                  <p className="text-sm whitespace-pre-wrap leading-relaxed">{msg.body}</p>
                                   <div className={`flex items-center gap-2 text-xs mt-2 ${
-                                    msg.direction === 'outbound' ? 'opacity-70' : 'text-muted-foreground'
+                                    msg.direction === 'outbound' ? 'text-blue-200' : 'text-gray-400'
                                   }`}>
                                     <span>{new Date(parseInt(msg.dateAdded) || msg.dateAdded).toLocaleString()}</span>
                                     {msg.direction === 'outbound' && msg.status && (
