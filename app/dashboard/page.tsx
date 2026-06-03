@@ -113,36 +113,38 @@ export default function DashboardPage() {
             </Link>
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="pb-4">
           {stats?.pipeline.stages.length === 0 ? (
             <p className="text-muted-foreground text-center py-8">No pipeline stages configured</p>
           ) : (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-              {stats?.pipeline.stages.map((stage) => (
-                <div 
-                  key={stage.id} 
-                  className="p-4 rounded-lg border bg-card hover:shadow-md transition-shadow"
-                >
-                  <div className="flex items-center gap-2 mb-2">
-                    <div 
-                      className="w-3 h-3 rounded-full flex-shrink-0" 
-                      style={{ backgroundColor: stage.color }}
-                    />
-                    <span className="text-sm font-medium truncate">{stage.name}</span>
+            <div className="overflow-x-auto pb-2">
+              <div className="flex gap-3" style={{ minWidth: 'max-content' }}>
+                {stats?.pipeline.stages.map((stage) => (
+                  <div 
+                    key={stage.id} 
+                    className="p-3 rounded-lg border bg-card hover:shadow-md transition-shadow min-w-[140px]"
+                  >
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <div 
+                        className="w-2.5 h-2.5 rounded-full flex-shrink-0" 
+                        style={{ backgroundColor: stage.color }}
+                      />
+                      <span className="text-xs font-medium truncate">{stage.name}</span>
+                    </div>
+                    <div className="text-xl font-bold">{stage.count}</div>
+                    {/* Progress bar */}
+                    <div className="mt-1.5 h-1.5 bg-muted rounded-full overflow-hidden">
+                      <div 
+                        className="h-full rounded-full transition-all"
+                        style={{ 
+                          backgroundColor: stage.color,
+                          width: `${(stage.count / maxStageCount) * 100}%`
+                        }}
+                      />
+                    </div>
                   </div>
-                  <div className="text-2xl font-bold">{stage.count}</div>
-                  {/* Progress bar */}
-                  <div className="mt-2 h-2 bg-muted rounded-full overflow-hidden">
-                    <div 
-                      className="h-full rounded-full transition-all"
-                      style={{ 
-                        backgroundColor: stage.color,
-                        width: `${(stage.count / maxStageCount) * 100}%`
-                      }}
-                    />
-                  </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
           )}
         </CardContent>
