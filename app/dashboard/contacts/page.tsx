@@ -400,9 +400,8 @@ export default function ContactsPage() {
                     <TableHead>Email</TableHead>
                     <TableHead>Phone</TableHead>
                     <TableHead>Tags</TableHead>
-                    <TableHead>Sub Account</TableHead>
+                    <TableHead>Date Created</TableHead>
                     <TableHead>Last Updated</TableHead>
-                    <TableHead>Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -447,40 +446,14 @@ export default function ContactsPage() {
                       </div>
                     </TableCell>
                     <TableCell>
-                      <Badge variant="outline" className="text-xs">
-                        {contact.subAccount || 'N/A'}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      {contact.lastUpdated
-                        ? new Date(contact.lastUpdated).toLocaleDateString()
+                      {contact.createdAt
+                        ? new Date(contact.createdAt).toLocaleDateString()
                         : 'N/A'}
                     </TableCell>
-                    <TableCell onClick={(e) => e.stopPropagation()}>
-                      <div className="flex gap-2">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            openMessageDialog(contact, 'sms')
-                          }}
-                          disabled={!contact.phone}
-                        >
-                          <MessageSquare className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            openMessageDialog(contact, 'email')
-                          }}
-                          disabled={!contact.email}
-                        >
-                          <Mail className="h-4 w-4" />
-                        </Button>
-                      </div>
+                    <TableCell>
+                      {contact.updatedAt
+                        ? new Date(contact.updatedAt).toLocaleDateString()
+                        : 'N/A'}
                     </TableCell>
                   </TableRow>
                 ))}
