@@ -1,123 +1,152 @@
-import { getSession } from '@/lib/auth'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Users, Truck, BarChart3, CheckSquare } from 'lucide-react'
+'use client'
 
-export default async function DashboardPage() {
-  const session = await getSession()
+import { useState, useEffect } from 'react'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Users, Mail, Phone, Loader2 } from 'lucide-react'
+import Link from 'next/link'
 
-  const stats = [
-    {
-      title: 'Total Agents',
-      value: '55',
-      description: 'Active agents in system',
-      icon: Users,
-      color: 'text-blue-600',
-    },
-    {
-      title: 'Recruitment Pipeline',
-      value: '12',
-      description: 'Active candidates',
-      icon: CheckSquare,
-      color: 'text-green-600',
-    },
-    {
-      title: 'Fleet Vehicles',
-      value: '24',
-      description: 'Total trucks managed',
-      icon: Truck,
-      color: 'text-orange-600',
-    },
-    {
-      title: 'Monthly Reports',
-      value: '8',
-      description: 'Generated this month',
-      icon: BarChart3,
-      color: 'text-purple-600',
-    },
-  ]
+interface PipelineStage {
+  id: string
+  name: string
+  color: string
+  order: number
+  count: number
+}
+
+interface DashboardStats {
+  contacts: {
+    total: number
+    withEmail: number
+    withPhone: number
+  }
+  pipeline: {
+    total: number
+    stages: PipelineStage[]
+  }
+}
+
+export default function DashboardPage() {
+  const [stats, setStats] = useState<DashboardStats | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    fetchStats()
+  }, [])
+
+  const fetchStats = async () => {
+    try {
+      const res = await fetch('/api/dashboard/stats')
+      const data = await res.json()
+      setStats(data)
+    } catch (error) {
+      console.error('Error fetching dashboard stats:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-[50vh]">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    )
+  }
+
+  const maxStageCount = stats?.pipeline.stages.reduce((max, stage) => Math.max(max, stage.count), 0) || 1
 
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-3xl font-bold tracking-tight">
-          Welcome back, {session?.name}!
-        </h2>
+        <h2 className="text-3xl font-bold tracking-tight">Dashboard</h2>
         <p className="text-muted-foreground">
-          Here's what's happening with your business today.
+          Overview of your contacts and recruitment pipeline.
         </p>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {stats.map((stat) => (
-          <Card key={stat.title}>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">{stat.title}</CardTitle>
-              <stat.icon className={`h-4 w-4 ${stat.color}`} />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stat.value}</div>
-              <p className="text-xs text-muted-foreground">{stat.description}</p>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-
-      <div className="grid gap-4 md:grid-cols-2">
+      {/* Contact Stats */}
+      <div className="grid gap-4 md:grid-cols-3">
         <Card>
-          <CardHeader>
-            <CardTitle>Recent Activity</CardTitle>
-            <CardDescription>Your latest system activities</CardDescription>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Total Contacts</CardTitle>
+            <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              <div className="flex items-center gap-4">
-                <div className="h-2 w-2 rounded-full bg-blue-600" />
-                <div className="flex-1">
-                  <p className="text-sm font-medium">New agent onboarded</p>
-                  <p className="text-xs text-muted-foreground">2 hours ago</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-4">
-                <div className="h-2 w-2 rounded-full bg-green-600" />
-                <div className="flex-1">
-                  <p className="text-sm font-medium">Recruitment pipeline updated</p>
-                  <p className="text-xs text-muted-foreground">5 hours ago</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-4">
-                <div className="h-2 w-2 rounded-full bg-orange-600" />
-                <div className="flex-1">
-                  <p className="text-sm font-medium">Vehicle maintenance scheduled</p>
-                  <p className="text-xs text-muted-foreground">1 day ago</p>
-                </div>
-              </div>
-            </div>
+            <div className="text-3xl font-bold">{stats?.contacts.total.toLocaleString() || 0}</div>
           </CardContent>
         </Card>
-
         <Card>
-          <CardHeader>
-            <CardTitle>Quick Actions</CardTitle>
-            <CardDescription>Common tasks and shortcuts</CardDescription>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">With Email</CardTitle>
+            <Mail className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="space-y-2">
-              <button className="w-full text-left p-3 rounded-lg hover:bg-accent transition-colors">
-                <p className="text-sm font-medium">Add New Agent</p>
-                <p className="text-xs text-muted-foreground">Start onboarding process</p>
-              </button>
-              <button className="w-full text-left p-3 rounded-lg hover:bg-accent transition-colors">
-                <p className="text-sm font-medium">View Recruitment Pipeline</p>
-                <p className="text-xs text-muted-foreground">Check candidate status</p>
-              </button>
-              <button className="w-full text-left p-3 rounded-lg hover:bg-accent transition-colors">
-                <p className="text-sm font-medium">Generate Report</p>
-                <p className="text-xs text-muted-foreground">Create analytics report</p>
-              </button>
-            </div>
+            <div className="text-3xl font-bold">{stats?.contacts.withEmail.toLocaleString() || 0}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">With Phone</CardTitle>
+            <Phone className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold">{stats?.contacts.withPhone.toLocaleString() || 0}</div>
           </CardContent>
         </Card>
       </div>
+
+      {/* Recruitment Pipeline */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>Recruitment Pipeline</CardTitle>
+              <p className="text-sm text-muted-foreground mt-1">
+                {stats?.pipeline.total || 0} contacts in pipeline
+              </p>
+            </div>
+            <Link 
+              href="/dashboard/recruitment" 
+              className="text-sm text-primary hover:underline"
+            >
+              View Pipeline →
+            </Link>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {stats?.pipeline.stages.length === 0 ? (
+            <p className="text-muted-foreground text-center py-8">No pipeline stages configured</p>
+          ) : (
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+              {stats?.pipeline.stages.map((stage) => (
+                <div 
+                  key={stage.id} 
+                  className="p-4 rounded-lg border bg-card hover:shadow-md transition-shadow"
+                >
+                  <div className="flex items-center gap-2 mb-2">
+                    <div 
+                      className="w-3 h-3 rounded-full flex-shrink-0" 
+                      style={{ backgroundColor: stage.color }}
+                    />
+                    <span className="text-sm font-medium truncate">{stage.name}</span>
+                  </div>
+                  <div className="text-2xl font-bold">{stage.count}</div>
+                  {/* Progress bar */}
+                  <div className="mt-2 h-2 bg-muted rounded-full overflow-hidden">
+                    <div 
+                      className="h-full rounded-full transition-all"
+                      style={{ 
+                        backgroundColor: stage.color,
+                        width: `${(stage.count / maxStageCount) * 100}%`
+                      }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   )
 }
