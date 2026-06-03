@@ -18,7 +18,7 @@ export default async function DashboardLayout({
   return (
     <SidebarProvider>
       <AppSidebar user={session} />
-      <SidebarInset className="h-screen overflow-hidden">
+      <SidebarInset className="h-screen flex flex-col">
         <header className="flex h-16 shrink-0 items-center gap-2 border-b bg-background px-4">
           <SidebarTrigger className="-ml-1" />
           <Separator orientation="vertical" className="mr-2 h-4" />
@@ -26,7 +26,7 @@ export default async function DashboardLayout({
             <h1 className="text-lg font-semibold">CHT System Dashboard</h1>
           </div>
         </header>
-        <main className="flex-1 overflow-hidden p-6">{children}</main>
+        <main className="flex-1 overflow-auto p-6">{children}</main>
       </SidebarInset>
     </SidebarProvider>
   )
