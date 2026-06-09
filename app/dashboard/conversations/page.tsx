@@ -56,10 +56,14 @@ export default function ConversationsPage() {
   }, [])
 
   useEffect(() => {
-    if (messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({ behavior: 'instant' })
+    // Only scroll after messages are loaded (not during loading)
+    if (messagesEndRef.current && messages.length > 0 && !loadingMessages) {
+      // Use requestAnimationFrame to ensure DOM is painted before scrolling
+      requestAnimationFrame(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'instant' })
+      })
     }
-  }, [messages])
+  }, [messages, loadingMessages])
 
   const fetchConversationsList = async () => {
     setLoading(true)

@@ -33,7 +33,7 @@ export async function POST(request: Request) {
     } else if (type === 'Email') {
       requestBody.subject = subject || 'No Subject'
       requestBody.html = message.replace(/\n/g, '<br>')
-      requestBody.emailFrom = process.env.GHL_EMAIL_FROM || 'noreply@example.com'
+      requestBody.emailFrom = process.env.GHL_EMAIL_FROM || 'noreply@soldbycht.com'
     }
 
     console.log('Sending message via GHL:', { type, contactId, messageLength: message.length })
