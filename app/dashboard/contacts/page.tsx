@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { RefreshCw, Users, Mail, Phone, Tag, MessageSquare, Send, Plus, Edit, Trash2, Search, X, Upload } from 'lucide-react'
+import { RefreshCw, Users, Mail, Phone, Tag, MessageSquare, Send, Plus, Edit, Trash2, Search, X, Upload, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import {
@@ -77,6 +77,12 @@ export default function ContactsPage() {
   })
   const [saving, setSaving] = useState(false)
   const [pushing, setPushing] = useState(false)
+
+  // Sort state
+  const [sortConfig, setSortConfig] = useState<{
+    key: 'name' | 'createdAt' | 'updatedAt' | null
+    direction: 'asc' | 'desc' | null
+  }>({ key: null, direction: null })
 
   const fetchContacts = async () => {
     try {
@@ -163,11 +169,52 @@ export default function ContactsPage() {
     )
   })
 
+  // Sorting
+  const handleSort = (key: 'name' | 'createdAt' | 'updatedAt') => {
+    setSortConfig((prev) => {
+      if (prev.key !== key) {
+        // New column - start with ascending
+        return { key, direction: 'asc' }
+      }
+      // Same column - cycle: asc -> desc -> null
+      if (prev.direction === 'asc') {
+        return { key, direction: 'desc' }
+      }
+      if (prev.direction === 'desc') {
+        return { key: null, direction: null }
+      }
+      return { key, direction: 'asc' }
+    })
+    setCurrentPage(1) // Reset to first page on sort change
+  }
+
+  const sortedContacts = [...filteredContacts].sort((a, b) => {
+    if (!sortConfig.key || !sortConfig.direction) return 0
+
+    let aValue: string | number = ''
+    let bValue: string | number = ''
+
+    if (sortConfig.key === 'name') {
+      aValue = `${a.firstName || ''} ${a.lastName || ''}`.toLowerCase().trim()
+      bValue = `${b.firstName || ''} ${b.lastName || ''}`.toLowerCase().trim()
+    } else if (sortConfig.key === 'createdAt') {
+      aValue = new Date(a.createdAt).getTime()
+      bValue = new Date(b.createdAt).getTime()
+    } else if (sortConfig.key === 'updatedAt') {
+      aValue = new Date(a.updatedAt).getTime()
+      bValue = new Date(b.updatedAt).getTime()
+    }
+
+    if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1
+    if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1
+    return 0
+  })
+
   // Pagination calculations
-  const totalPages = Math.ceil(filteredContacts.length / itemsPerPage)
+  const totalPages = Math.ceil(sortedContacts.length / itemsPerPage)
   const startIndex = (currentPage - 1) * itemsPerPage
   const endIndex = startIndex + itemsPerPage
-  const currentContacts = filteredContacts.slice(startIndex, endIndex)
+  const currentContacts = sortedContacts.slice(startIndex, endIndex)
 
   const goToPage = (page: number) => {
     setCurrentPage(page)
@@ -438,12 +485,48 @@ export default function ContactsPage() {
                 <TableHeader className="sticky top-0 bg-background z-10">
                   <TableRow>
                     <TableHead className="w-12"></TableHead>
-                    <TableHead>Name</TableHead>
+                    <TableHead 
+                      className="cursor-pointer hover:bg-muted/50 select-none"
+                      onClick={() => handleSort('name')}
+                    >
+                      <div className="flex items-center gap-1">
+                        Name
+                        {sortConfig.key === 'name' ? (
+                          sortConfig.direction === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />
+                        ) : (
+                          <ArrowUpDown className="h-4 w-4 text-muted-foreground" />
+                        )}
+                      </div>
+                    </TableHead>
                     <TableHead>Email</TableHead>
                     <TableHead>Phone</TableHead>
                     <TableHead>Tags</TableHead>
-                    <TableHead>Date Created</TableHead>
-                    <TableHead>Last Updated</TableHead>
+                    <TableHead 
+                      className="cursor-pointer hover:bg-muted/50 select-none"
+                      onClick={() => handleSort('createdAt')}
+                    >
+                      <div className="flex items-center gap-1">
+                        Date Created
+                        {sortConfig.key === 'createdAt' ? (
+                          sortConfig.direction === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />
+                        ) : (
+                          <ArrowUpDown className="h-4 w-4 text-muted-foreground" />
+                        )}
+                      </div>
+                    </TableHead>
+                    <TableHead 
+                      className="cursor-pointer hover:bg-muted/50 select-none"
+                      onClick={() => handleSort('updatedAt')}
+                    >
+                      <div className="flex items-center gap-1">
+                        Last Updated
+                        {sortConfig.key === 'updatedAt' ? (
+                          sortConfig.direction === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />
+                        ) : (
+                          <ArrowUpDown className="h-4 w-4 text-muted-foreground" />
+                        )}
+                      </div>
+                    </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -504,11 +587,12 @@ export default function ContactsPage() {
             </div>
           )}
           
-          {filteredContacts.length > 0 && (
+          {sortedContacts.length > 0 && (
             <div className="flex items-center justify-between px-2 py-4">
               <div className="text-sm text-muted-foreground">
-                Showing {startIndex + 1} to {Math.min(endIndex, filteredContacts.length)} of {filteredContacts.length} contacts
+                Showing {startIndex + 1} to {Math.min(endIndex, sortedContacts.length)} of {sortedContacts.length} contacts
                 {searchQuery && ` (filtered from ${contacts.length})`}
+                {sortConfig.key && ` • Sorted by ${sortConfig.key === 'name' ? 'Name' : sortConfig.key === 'createdAt' ? 'Date Created' : 'Last Updated'} ${sortConfig.direction === 'asc' ? '↑' : '↓'}`}
               </div>
               <div className="flex items-center gap-2">
                 <Button
