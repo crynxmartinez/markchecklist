@@ -45,23 +45,22 @@ export default function ConversationsPage() {
   const [messages, setMessages] = useState<Message[]>([])
   const [loading, setLoading] = useState(true)
   const [loadingMessages, setLoadingMessages] = useState(false)
+  const [syncingMessages, setSyncingMessages] = useState(false) // Background sync indicator
   const [searchQuery, setSearchQuery] = useState('')
   const [filter, setFilter] = useState<'all' | 'unread' | 'read'>('all')
   const [readConversationIds, setReadConversationIds] = useState<Set<string>>(new Set())
-  const messagesEndRef = useRef<HTMLDivElement>(null)
+  const messagesContainerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     fetchConversationsList()
     fetchReadStatus()
   }, [])
 
+  // Scroll to bottom when messages change - use scrollTop instead of scrollIntoView
   useEffect(() => {
-    // Only scroll after messages are loaded (not during loading)
-    if (messagesEndRef.current && messages.length > 0 && !loadingMessages) {
-      // Use requestAnimationFrame to ensure DOM is painted before scrolling
-      requestAnimationFrame(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: 'instant' })
-      })
+    if (messagesContainerRef.current && messages.length > 0 && !loadingMessages) {
+      // Set scrollTop to max to scroll to bottom instantly
+      messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight
     }
   }, [messages, loadingMessages])
 
@@ -310,9 +309,29 @@ export default function ConversationsPage() {
             </div>
 
             {/* Messages */}
-            <div className="flex-1 overflow-y-auto p-4 bg-muted/20">
+            <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-4 bg-muted/20">
               {loadingMessages ? (
-                <p className="text-center text-muted-foreground py-8">Loading messages...</p>
+                <div className="space-y-4 max-w-3xl mx-auto py-8">
+                  {/* Skeleton loading */}
+                  <div className="flex justify-start">
+                    <div className="max-w-[70%] rounded-lg px-4 py-3 bg-white border animate-pulse">
+                      <div className="h-4 bg-gray-200 rounded w-48 mb-2"></div>
+                      <div className="h-3 bg-gray-200 rounded w-32"></div>
+                    </div>
+                  </div>
+                  <div className="flex justify-end">
+                    <div className="max-w-[70%] rounded-lg px-4 py-3 bg-primary/20 animate-pulse">
+                      <div className="h-4 bg-primary/30 rounded w-56 mb-2"></div>
+                      <div className="h-3 bg-primary/30 rounded w-24"></div>
+                    </div>
+                  </div>
+                  <div className="flex justify-start">
+                    <div className="max-w-[70%] rounded-lg px-4 py-3 bg-white border animate-pulse">
+                      <div className="h-4 bg-gray-200 rounded w-40 mb-2"></div>
+                      <div className="h-3 bg-gray-200 rounded w-28"></div>
+                    </div>
+                  </div>
+                </div>
               ) : messages.length === 0 ? (
                 <div className="text-center text-muted-foreground py-8">
                   <MessageSquare className="h-8 w-8 mx-auto mb-2 opacity-50" />
@@ -320,6 +339,13 @@ export default function ConversationsPage() {
                 </div>
               ) : (
                 <div className="space-y-4 max-w-3xl mx-auto">
+                  {/* Syncing indicator */}
+                  {syncingMessages && (
+                    <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground py-2">
+                      <RefreshCw className="h-3 w-3 animate-spin" />
+                      <span>Syncing with GHL...</span>
+                    </div>
+                  )}
                   {messages.map((msg: any) => {
                     // Handle different GHL field names
                     const isOutbound = msg.direction === 'outbound' || msg.direction === 1
@@ -374,7 +400,6 @@ export default function ConversationsPage() {
                       </div>
                     )
                   })}
-                  <div ref={messagesEndRef} />
                 </div>
               )}
             </div>
@@ -400,10 +425,12 @@ export default function ConversationsPage() {
                   setMessages(prev => [...prev, optimisticMessage])
                 }
                 
-                // Also fetch from GHL after a delay to get the real message
+                // Show syncing indicator and fetch from GHL after a delay
                 if (selectedConversation) {
-                  setTimeout(() => {
-                    fetchMessages(selectedConversation.id)
+                  setSyncingMessages(true)
+                  setTimeout(async () => {
+                    await fetchMessages(selectedConversation.id)
+                    setSyncingMessages(false)
                   }, 2000) // 2 second delay for GHL to process
                 }
               }}
