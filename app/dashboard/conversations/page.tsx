@@ -51,18 +51,20 @@ export default function ConversationsPage() {
   const [readConversationIds, setReadConversationIds] = useState<Set<string>>(new Set())
   const messagesContainerRef = useRef<HTMLDivElement>(null)
 
+  const [shouldScrollToBottom, setShouldScrollToBottom] = useState(false)
+
   useEffect(() => {
     fetchConversationsList()
     fetchReadStatus()
   }, [])
 
-  // Scroll to bottom when messages change - use scrollTop instead of scrollIntoView
+  // Scroll to bottom only when explicitly requested (initial load or after sending)
   useEffect(() => {
-    if (messagesContainerRef.current && messages.length > 0 && !loadingMessages) {
-      // Set scrollTop to max to scroll to bottom instantly
+    if (messagesContainerRef.current && shouldScrollToBottom && messages.length > 0 && !loadingMessages) {
       messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight
+      setShouldScrollToBottom(false) // Reset after scrolling
     }
-  }, [messages, loadingMessages])
+  }, [messages, loadingMessages, shouldScrollToBottom])
 
   const fetchConversationsList = async () => {
     setLoading(true)
@@ -96,29 +98,59 @@ export default function ConversationsPage() {
     }
   }
 
-  const fetchMessages = async (conversationId: string) => {
-    setLoadingMessages(true)
-    console.log('Fetching messages for:', conversationId)
+  const fetchMessages = async (conversationId: string, isBackgroundSync = false) => {
+    // Only show loading skeleton for initial load, not background syncs
+    if (!isBackgroundSync) {
+      setLoadingMessages(true)
+    }
+    
+    console.log('Fetching messages for:', conversationId, isBackgroundSync ? '(background)' : '(initial)')
     try {
       const res = await fetch(`/api/conversations/${conversationId}/messages`)
       const data = await res.json()
-      console.log('Messages response:', data)
-      console.log('First message sample:', data.messages?.[0])
+      
       if (data.error) {
         console.error('API error:', data.error)
+        return
       }
-      setMessages(data.messages || [])
+      
+      const newMessages = data.messages || []
+      
+      if (isBackgroundSync) {
+        // Merge: keep existing messages, add any new ones from GHL
+        // Replace temp messages with real ones
+        setMessages(prev => {
+          // Filter out temp messages (they start with 'temp-')
+          const withoutTemp = prev.filter(m => !m.id.startsWith('temp-'))
+          
+          // Create a map of existing message IDs
+          const existingIds = new Set(withoutTemp.map(m => m.id))
+          
+          // Add new messages that don't exist yet
+          const trulyNew = newMessages.filter((m: Message) => !existingIds.has(m.id))
+          
+          return [...withoutTemp, ...trulyNew]
+        })
+      } else {
+        // Initial load - replace all
+        setMessages(newMessages)
+      }
     } catch (error) {
       console.error('Error fetching messages:', error)
-      setMessages([])
+      if (!isBackgroundSync) {
+        setMessages([])
+      }
     } finally {
-      setLoadingMessages(false)
+      if (!isBackgroundSync) {
+        setLoadingMessages(false)
+      }
     }
   }
 
   const handleSelectConversation = (conv: ConversationItem) => {
     setSelectedConversation(conv)
     setMessages([])
+    setShouldScrollToBottom(true) // Scroll to bottom after initial load
     fetchMessages(conv.id)
     // Mark as read in our system
     if (!readConversationIds.has(conv.id)) {
@@ -423,13 +455,14 @@ export default function ConversationsPage() {
                     meta: sentMessage.type === 'Email' ? { email: { subject: sentMessage.subject } } : undefined,
                   }
                   setMessages(prev => [...prev, optimisticMessage])
+                  setShouldScrollToBottom(true) // Scroll to show the new message
                 }
                 
-                // Show syncing indicator and fetch from GHL after a delay
+                // Show syncing indicator and fetch from GHL after a delay (background sync)
                 if (selectedConversation) {
                   setSyncingMessages(true)
                   setTimeout(async () => {
-                    await fetchMessages(selectedConversation.id)
+                    await fetchMessages(selectedConversation.id, true) // true = background sync
                     setSyncingMessages(false)
                   }, 2000) // 2 second delay for GHL to process
                 }
