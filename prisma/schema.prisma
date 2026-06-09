@@ -33,13 +33,28 @@ model User {
 }
 
 model Agent {
-  id              String   @id @default(cuid())
-  name            String   @unique
-  email           String   @unique
-  checklistState  Json     @default("[]")
-  percentage      Int      @default(0)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id               String    @id @default(cuid())
+  name             String
+  email            String    @unique
+  phone            String?
+  status           String?   // Active, Inactive, Part Time, Processing
+  leadTeam         String?   // Active, Inactive, Processing
+  coach            String?   // Kiona Grantham, Mario Munoz, Melissa Perla, N/A
+  agentDevelopment String?   // Yes, No
+  dre              String?   // DRE License number
+  dreExpiration    DateTime? // DRE Expiration date
+  birthday         String?   // Month Day format (e.g., "April 2")
+  anniversary      String?   // MM-DD-YYYY format
+  language         String?   // Spanish, Romanian, etc.
+  mlsId            String?   // MLS ID
+  subscription     String?   // Yes, No, Outside
+  tc               String?   // Transaction Coordinator (Alexis, Kenia, Outside)
+  source           String?   // Referral, FB, etc.
+  ghlContactId     String?   // Link to GHL contact if exists
+  checklistState   Json      @default("[]")
+  percentage       Int       @default(0)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 }
 
 model Contact {

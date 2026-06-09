@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { RefreshCw, Users, Mail, Phone, Tag, MessageSquare, Send, Plus, Edit, Trash2, Search, X } from 'lucide-react'
+import { RefreshCw, Users, Mail, Phone, Tag, MessageSquare, Send, Plus, Edit, Trash2, Search, X, Upload } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import {
@@ -76,6 +76,7 @@ export default function ContactsPage() {
     tags: '',
   })
   const [saving, setSaving] = useState(false)
+  const [pushing, setPushing] = useState(false)
 
   const fetchContacts = async () => {
     try {
@@ -111,6 +112,38 @@ export default function ContactsPage() {
       console.error('Sync error:', error)
     } finally {
       setSyncing(false)
+    }
+  }
+
+  const handlePushToGHL = async () => {
+    if (selectedContacts.size === 0) {
+      setSyncMessage('Please select contacts to push to GHL')
+      return
+    }
+
+    setPushing(true)
+    setSyncMessage('')
+
+    try {
+      const response = await fetch('/api/contacts/push-to-ghl', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contactIds: Array.from(selectedContacts) }),
+      })
+
+      const data = await response.json()
+
+      if (response.ok) {
+        setSyncMessage(`Pushed ${data.summary.success} contacts to GHL (${data.summary.created} created, ${data.summary.updated} updated)`)
+        setSelectedContacts(new Set())
+      } else {
+        setSyncMessage(`Error: ${data.error}`)
+      }
+    } catch (error) {
+      setSyncMessage('Failed to push contacts to GHL')
+      console.error('Push error:', error)
+    } finally {
+      setPushing(false)
     }
   }
 
@@ -329,6 +362,15 @@ export default function ContactsPage() {
           <Button onClick={handleSync} disabled={syncing}>
             <RefreshCw className={`mr-2 h-4 w-4 ${syncing ? 'animate-spin' : ''}`} />
             {syncing ? 'Syncing...' : 'Sync from GHL'}
+          </Button>
+          <Button 
+            variant="secondary"
+            onClick={handlePushToGHL} 
+            disabled={pushing || selectedContacts.size === 0}
+            title={selectedContacts.size === 0 ? 'Select contacts to push' : `Push ${selectedContacts.size} contacts to GHL`}
+          >
+            <Upload className={`mr-2 h-4 w-4 ${pushing ? 'animate-pulse' : ''}`} />
+            {pushing ? 'Pushing...' : `Push to GHL${selectedContacts.size > 0 ? ` (${selectedContacts.size})` : ''}`}
           </Button>
         </div>
       </div>
