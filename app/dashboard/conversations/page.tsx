@@ -385,10 +385,26 @@ export default function ConversationsPage() {
               contactPhone={selectedConversation.phone}
               contactEmail={selectedConversation.email}
               defaultType={selectedConversation.type === 'TYPE_EMAIL' ? 'Email' : 'SMS'}
-              onMessageSent={() => {
-                // Refresh messages after sending
+              onMessageSent={(sentMessage?: { type: string; message: string; subject?: string }) => {
+                // Optimistically add the message to UI immediately
+                if (sentMessage) {
+                  const optimisticMessage: Message = {
+                    id: `temp-${Date.now()}`,
+                    body: sentMessage.message,
+                    type: sentMessage.type === 'SMS' ? 1 : 2,
+                    direction: 'outbound',
+                    status: 'sent',
+                    dateAdded: new Date().toISOString(),
+                    meta: sentMessage.type === 'Email' ? { email: { subject: sentMessage.subject } } : undefined,
+                  }
+                  setMessages(prev => [...prev, optimisticMessage])
+                }
+                
+                // Also fetch from GHL after a delay to get the real message
                 if (selectedConversation) {
-                  fetchMessages(selectedConversation.id)
+                  setTimeout(() => {
+                    fetchMessages(selectedConversation.id)
+                  }, 2000) // 2 second delay for GHL to process
                 }
               }}
             />

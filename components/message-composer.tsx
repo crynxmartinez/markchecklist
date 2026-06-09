@@ -15,7 +15,7 @@ interface MessageComposerProps {
   contactPhone?: string
   contactEmail?: string
   defaultType?: 'SMS' | 'Email'
-  onMessageSent?: () => void
+  onMessageSent?: (sentMessage?: { type: string; message: string; subject?: string }) => void
 }
 
 interface PhoneNumber {
@@ -137,6 +137,13 @@ export function MessageComposer({
         throw new Error(data.error || 'Failed to send message')
       }
 
+      // Pass sent message data to callback before clearing
+      const sentMessageData = {
+        type,
+        message: messageContent,
+        subject: type === 'Email' ? subject.trim() : undefined,
+      }
+      
       // Clear form on success
       setMessage('')
       setSubject('')
@@ -145,7 +152,7 @@ export function MessageComposer({
       setTimeout(() => setSuccess(false), 3000)
       
       if (onMessageSent) {
-        onMessageSent()
+        onMessageSent(sentMessageData)
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to send message')
