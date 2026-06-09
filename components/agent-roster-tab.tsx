@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Search, X, ArrowUp, ArrowDown, ArrowUpDown, Upload, Edit, Trash2 } from 'lucide-react'
+import { Search, X, ArrowUp, ArrowDown, ArrowUpDown, Edit } from 'lucide-react'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -54,7 +54,12 @@ interface Agent {
   updatedAt: string
 }
 
-export function AgentRosterTab() {
+interface AgentRosterTabProps {
+  onSelectionChange?: (count: number, selectedIds: Set<string>) => void
+  onAgentsLoaded?: (count: number) => void
+}
+
+export function AgentRosterTab({ onSelectionChange, onAgentsLoaded }: AgentRosterTabProps) {
   const [agents, setAgents] = useState<Agent[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
@@ -110,6 +115,20 @@ export function AgentRosterTab() {
   useEffect(() => {
     fetchAgents()
   }, [])
+
+  // Notify parent of agents loaded
+  useEffect(() => {
+    if (onAgentsLoaded) {
+      onAgentsLoaded(agents.length)
+    }
+  }, [agents.length, onAgentsLoaded])
+
+  // Notify parent of selection changes
+  useEffect(() => {
+    if (onSelectionChange) {
+      onSelectionChange(selectedAgents.size, selectedAgents)
+    }
+  }, [selectedAgents, onSelectionChange])
 
   // Search filtering
   const filteredAgents = agents.filter((agent) => {
@@ -284,32 +303,8 @@ export function AgentRosterTab() {
             </button>
           )}
         </div>
-        <div className="flex items-center gap-2">
-          <span className="text-sm text-muted-foreground mr-2">
-            {sortedAgents.length} agents
-          </span>
-          <Button 
-            variant="outline" 
-            size="sm"
-            onClick={() => {
-              if (selectedAgents.size !== 1) return
-              const agentId = Array.from(selectedAgents)[0]
-              const agent = agents.find(a => a.id === agentId)
-              if (agent) openEditDialog(agent)
-            }}
-            disabled={selectedAgents.size !== 1}
-          >
-            <Edit className="mr-2 h-4 w-4" />
-            Edit
-          </Button>
-          <Button 
-            variant="outline" 
-            size="sm"
-            disabled={selectedAgents.size === 0}
-          >
-            <Trash2 className="mr-2 h-4 w-4" />
-            Delete ({selectedAgents.size})
-          </Button>
+        <div className="text-sm text-muted-foreground">
+          {sortedAgents.length} agents
         </div>
       </div>
 

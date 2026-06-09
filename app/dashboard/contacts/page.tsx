@@ -81,6 +81,11 @@ export default function ContactsPage() {
   const [saving, setSaving] = useState(false)
   const [pushing, setPushing] = useState(false)
 
+  // Agent Roster state (lifted from child)
+  const [agentCount, setAgentCount] = useState(0)
+  const [selectedAgentCount, setSelectedAgentCount] = useState(0)
+  const [selectedAgentIds, setSelectedAgentIds] = useState<Set<string>>(new Set())
+
   // Sort state
   const [sortConfig, setSortConfig] = useState<{
     key: 'name' | 'createdAt' | 'updatedAt' | null
@@ -425,6 +430,39 @@ export default function ContactsPage() {
             </Button>
           </div>
         )}
+        {activeTab === 'agents' && (
+          <div className="flex gap-2">
+            <Button variant="outline" disabled>
+              <Plus className="mr-2 h-4 w-4" />
+              New Agent
+            </Button>
+            <Button 
+              variant="outline" 
+              disabled={selectedAgentCount !== 1}
+            >
+              <Edit className="mr-2 h-4 w-4" />
+              Edit
+            </Button>
+            <Button 
+              variant="outline" 
+              disabled={selectedAgentCount === 0}
+            >
+              <Trash2 className="mr-2 h-4 w-4" />
+              Delete ({selectedAgentCount})
+            </Button>
+            <Button disabled>
+              <RefreshCw className="mr-2 h-4 w-4" />
+              Sync from GHL
+            </Button>
+            <Button 
+              variant="secondary"
+              disabled={selectedAgentCount === 0}
+            >
+              <Upload className="mr-2 h-4 w-4" />
+              Push to GHL{selectedAgentCount > 0 ? ` (${selectedAgentCount})` : ''}
+            </Button>
+          </div>
+        )}
       </div>
 
       {syncMessage && (
@@ -445,6 +483,7 @@ export default function ContactsPage() {
           <TabsTrigger value="agents" className="flex items-center gap-2">
             <UserCheck className="h-4 w-4" />
             Agent Roster
+            {agentCount > 0 && <Badge variant="secondary" className="ml-1">{agentCount}</Badge>}
           </TabsTrigger>
           <TabsTrigger value="admins" className="flex items-center gap-2" disabled>
             <Shield className="h-4 w-4" />
@@ -677,7 +716,13 @@ export default function ContactsPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <AgentRosterTab />
+              <AgentRosterTab 
+                onSelectionChange={(count, ids) => {
+                  setSelectedAgentCount(count)
+                  setSelectedAgentIds(ids)
+                }}
+                onAgentsLoaded={(count) => setAgentCount(count)}
+              />
             </CardContent>
           </Card>
         </TabsContent>
