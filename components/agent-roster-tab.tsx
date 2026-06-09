@@ -1,7 +1,8 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Search, X, ArrowUp, ArrowDown, ArrowUpDown, Upload, Edit, Save, XCircle } from 'lucide-react'
+import { Search, X, ArrowUp, ArrowDown, ArrowUpDown, Upload, Edit, Trash2 } from 'lucide-react'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
@@ -61,6 +62,9 @@ export function AgentRosterTab() {
   const [itemsPerPage] = useState(50)
   const [pushing, setPushing] = useState(false)
   const [message, setMessage] = useState('')
+  
+  // Selection state
+  const [selectedAgents, setSelectedAgents] = useState<Set<string>>(new Set())
   
   // Edit state
   const [editDialogOpen, setEditDialogOpen] = useState(false)
@@ -280,8 +284,32 @@ export function AgentRosterTab() {
             </button>
           )}
         </div>
-        <div className="text-sm text-muted-foreground">
-          {sortedAgents.length} agents
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-muted-foreground mr-2">
+            {sortedAgents.length} agents
+          </span>
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={() => {
+              if (selectedAgents.size !== 1) return
+              const agentId = Array.from(selectedAgents)[0]
+              const agent = agents.find(a => a.id === agentId)
+              if (agent) openEditDialog(agent)
+            }}
+            disabled={selectedAgents.size !== 1}
+          >
+            <Edit className="mr-2 h-4 w-4" />
+            Edit
+          </Button>
+          <Button 
+            variant="outline" 
+            size="sm"
+            disabled={selectedAgents.size === 0}
+          >
+            <Trash2 className="mr-2 h-4 w-4" />
+            Delete ({selectedAgents.size})
+          </Button>
         </div>
       </div>
 
@@ -303,6 +331,22 @@ export function AgentRosterTab() {
           <Table>
             <TableHeader className="sticky top-0 bg-background z-10">
               <TableRow>
+                <TableHead className="w-12">
+                  <Checkbox
+                    checked={currentAgents.length > 0 && currentAgents.every(a => selectedAgents.has(a.id))}
+                    onCheckedChange={(checked) => {
+                      if (checked) {
+                        const newSelection = new Set(selectedAgents)
+                        currentAgents.forEach(a => newSelection.add(a.id))
+                        setSelectedAgents(newSelection)
+                      } else {
+                        const newSelection = new Set(selectedAgents)
+                        currentAgents.forEach(a => newSelection.delete(a.id))
+                        setSelectedAgents(newSelection)
+                      }
+                    }}
+                  />
+                </TableHead>
                 <TableHead 
                   className="cursor-pointer hover:bg-muted/50 select-none"
                   onClick={() => handleSort('name')}
@@ -333,12 +377,28 @@ export function AgentRosterTab() {
                 <TableHead>DRE</TableHead>
                 <TableHead>DRE Exp</TableHead>
                 <TableHead>TC</TableHead>
-                <TableHead>Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {currentAgents.map((agent) => (
-                <TableRow key={agent.id} className="hover:bg-muted/50">
+                <TableRow 
+                  key={agent.id} 
+                  className={`hover:bg-muted/50 ${selectedAgents.has(agent.id) ? 'bg-muted/30' : ''}`}
+                >
+                  <TableCell onClick={(e) => e.stopPropagation()}>
+                    <Checkbox
+                      checked={selectedAgents.has(agent.id)}
+                      onCheckedChange={(checked) => {
+                        const newSelection = new Set(selectedAgents)
+                        if (checked) {
+                          newSelection.add(agent.id)
+                        } else {
+                          newSelection.delete(agent.id)
+                        }
+                        setSelectedAgents(newSelection)
+                      }}
+                    />
+                  </TableCell>
                   <TableCell className="font-medium">{agent.name}</TableCell>
                   <TableCell>
                     <Badge className={getStatusColor(agent.status)}>
@@ -360,15 +420,6 @@ export function AgentRosterTab() {
                       : 'N/A'}
                   </TableCell>
                   <TableCell>{agent.tc || 'N/A'}</TableCell>
-                  <TableCell>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => openEditDialog(agent)}
-                    >
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
