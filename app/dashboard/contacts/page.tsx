@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { RefreshCw, Users, Mail, Phone, Tag, MessageSquare, Send, Plus, Edit, Trash2, Search, X, Upload, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react'
+import { RefreshCw, Users, Mail, Phone, Tag, MessageSquare, Send, Plus, Edit, Trash2, Search, X, Upload, ArrowUp, ArrowDown, ArrowUpDown, UserCheck, Shield } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import {
@@ -26,6 +26,8 @@ import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { Checkbox } from '@/components/ui/checkbox'
 import { ContactDetailModal } from '@/components/contact-detail-modal'
+import { AgentRosterTab } from '@/components/agent-roster-tab'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 
 interface Contact {
   id: string
@@ -44,6 +46,7 @@ interface Contact {
 }
 
 export default function ContactsPage() {
+  const [activeTab, setActiveTab] = useState('contacts')
   const [contacts, setContacts] = useState<Contact[]>([])
   const [loading, setLoading] = useState(true)
   const [syncing, setSyncing] = useState(false)
@@ -385,41 +388,43 @@ export default function ContactsPage() {
           <h1 className="text-3xl font-bold">CHT Contact Database</h1>
           <p className="text-muted-foreground">All contacts from GHL sub-accounts synced to CHT System</p>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={() => setCreateDialogOpen(true)}>
-            <Plus className="mr-2 h-4 w-4" />
-            New Contact
-          </Button>
-          <Button 
-            variant="outline" 
-            onClick={openEditDialog}
-            disabled={selectedContacts.size !== 1}
-          >
-            <Edit className="mr-2 h-4 w-4" />
-            Edit
-          </Button>
-          <Button 
-            variant="outline" 
-            onClick={handleDeleteContacts}
-            disabled={selectedContacts.size === 0}
-          >
-            <Trash2 className="mr-2 h-4 w-4" />
-            Delete ({selectedContacts.size})
-          </Button>
-          <Button onClick={handleSync} disabled={syncing}>
-            <RefreshCw className={`mr-2 h-4 w-4 ${syncing ? 'animate-spin' : ''}`} />
-            {syncing ? 'Syncing...' : 'Sync from GHL'}
-          </Button>
-          <Button 
-            variant="secondary"
-            onClick={handlePushToGHL} 
-            disabled={pushing || selectedContacts.size === 0}
-            title={selectedContacts.size === 0 ? 'Select contacts to push' : `Push ${selectedContacts.size} contacts to GHL`}
-          >
-            <Upload className={`mr-2 h-4 w-4 ${pushing ? 'animate-pulse' : ''}`} />
-            {pushing ? 'Pushing...' : `Push to GHL${selectedContacts.size > 0 ? ` (${selectedContacts.size})` : ''}`}
-          </Button>
-        </div>
+        {activeTab === 'contacts' && (
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setCreateDialogOpen(true)}>
+              <Plus className="mr-2 h-4 w-4" />
+              New Contact
+            </Button>
+            <Button 
+              variant="outline" 
+              onClick={openEditDialog}
+              disabled={selectedContacts.size !== 1}
+            >
+              <Edit className="mr-2 h-4 w-4" />
+              Edit
+            </Button>
+            <Button 
+              variant="outline" 
+              onClick={handleDeleteContacts}
+              disabled={selectedContacts.size === 0}
+            >
+              <Trash2 className="mr-2 h-4 w-4" />
+              Delete ({selectedContacts.size})
+            </Button>
+            <Button onClick={handleSync} disabled={syncing}>
+              <RefreshCw className={`mr-2 h-4 w-4 ${syncing ? 'animate-spin' : ''}`} />
+              {syncing ? 'Syncing...' : 'Sync from GHL'}
+            </Button>
+            <Button 
+              variant="secondary"
+              onClick={handlePushToGHL} 
+              disabled={pushing || selectedContacts.size === 0}
+              title={selectedContacts.size === 0 ? 'Select contacts to push' : `Push ${selectedContacts.size} contacts to GHL`}
+            >
+              <Upload className={`mr-2 h-4 w-4 ${pushing ? 'animate-pulse' : ''}`} />
+              {pushing ? 'Pushing...' : `Push to GHL${selectedContacts.size > 0 ? ` (${selectedContacts.size})` : ''}`}
+            </Button>
+          </div>
+        )}
       </div>
 
       {syncMessage && (
@@ -430,15 +435,34 @@ export default function ContactsPage() {
         </Card>
       )}
 
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle>Contacts</CardTitle>
-              <CardDescription>
-                All contacts synced from GoHighLevel sub-accounts
-              </CardDescription>
-            </div>
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList className="mb-4">
+          <TabsTrigger value="contacts" className="flex items-center gap-2">
+            <Users className="h-4 w-4" />
+            Contacts
+            <Badge variant="secondary" className="ml-1">{contacts.length}</Badge>
+          </TabsTrigger>
+          <TabsTrigger value="agents" className="flex items-center gap-2">
+            <UserCheck className="h-4 w-4" />
+            Agent Roster
+          </TabsTrigger>
+          <TabsTrigger value="admins" className="flex items-center gap-2" disabled>
+            <Shield className="h-4 w-4" />
+            Admin Roster
+            <Badge variant="outline" className="ml-1 text-xs">Soon</Badge>
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="contacts">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Contacts</CardTitle>
+                  <CardDescription>
+                    All contacts synced from GoHighLevel sub-accounts
+                  </CardDescription>
+                </div>
             {/* Search Bar */}
             <div className="relative w-[350px]">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -641,7 +665,40 @@ export default function ContactsPage() {
             </div>
           )}
         </CardContent>
-      </Card>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="agents">
+          <Card>
+            <CardHeader>
+              <CardTitle>Agent Roster</CardTitle>
+              <CardDescription>
+                CHT real estate agents and team members
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <AgentRosterTab />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="admins">
+          <Card>
+            <CardHeader>
+              <CardTitle>Admin Roster</CardTitle>
+              <CardDescription>
+                CHT administrative staff
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="text-center py-12 text-muted-foreground">
+                <Shield className="mx-auto h-12 w-12 mb-4" />
+                <p>Admin Roster coming soon</p>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
 
       {/* Message Dialog */}
       <Dialog open={messageDialogOpen} onOpenChange={setMessageDialogOpen}>
