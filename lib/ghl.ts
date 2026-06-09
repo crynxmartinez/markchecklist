@@ -134,28 +134,36 @@ interface SendEmailParams {
 export async function sendSMS({ contactId, message, apiKey }: SendSMSParams) {
   try {
     console.log('Sending SMS to contact:', contactId)
+    console.log('Message length:', message.length)
+    
+    const requestBody = {
+      type: 'SMS',
+      contactId: contactId,
+      message: message,
+    }
+    
+    console.log('Request body:', JSON.stringify(requestBody))
     
     const response = await fetch(`${GHL_API_BASE}/conversations/messages`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${apiKey}`,
-        'Version': GHL_API_VERSION,
+        'Version': '2021-04-15',
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        type: 'SMS',
-        contactId: contactId,
-        message: message,
-      }),
+      body: JSON.stringify(requestBody),
     })
 
+    const responseText = await response.text()
+    console.log('GHL SMS response status:', response.status)
+    console.log('GHL SMS response:', responseText)
+
     if (!response.ok) {
-      const errorText = await response.text()
-      console.error('GHL SMS error:', errorText)
-      throw new Error(`Failed to send SMS: ${response.status} ${response.statusText}`)
+      console.error('GHL SMS error:', responseText)
+      throw new Error(`Failed to send SMS: ${response.status} - ${responseText}`)
     }
 
-    const data = await response.json()
+    const data = JSON.parse(responseText)
     console.log('SMS sent successfully:', data)
     return data
   } catch (error) {
@@ -167,29 +175,38 @@ export async function sendSMS({ contactId, message, apiKey }: SendSMSParams) {
 export async function sendEmail({ contactId, subject, message, apiKey }: SendEmailParams) {
   try {
     console.log('Sending email to contact:', contactId)
+    console.log('Subject:', subject)
+    
+    const requestBody = {
+      type: 'Email',
+      contactId: contactId,
+      subject: subject,
+      html: message,
+      emailFrom: process.env.GHL_EMAIL_FROM || 'noreply@soldbycht.com',
+    }
+    
+    console.log('Request body:', JSON.stringify(requestBody))
     
     const response = await fetch(`${GHL_API_BASE}/conversations/messages`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${apiKey}`,
-        'Version': GHL_API_VERSION,
+        'Version': '2021-04-15',
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        type: 'Email',
-        contactId: contactId,
-        subject: subject,
-        html: message,
-      }),
+      body: JSON.stringify(requestBody),
     })
 
+    const responseText = await response.text()
+    console.log('GHL Email response status:', response.status)
+    console.log('GHL Email response:', responseText)
+
     if (!response.ok) {
-      const errorText = await response.text()
-      console.error('GHL Email error:', errorText)
-      throw new Error(`Failed to send email: ${response.status} ${response.statusText}`)
+      console.error('GHL Email error:', responseText)
+      throw new Error(`Failed to send email: ${response.status} - ${responseText}`)
     }
 
-    const data = await response.json()
+    const data = JSON.parse(responseText)
     console.log('Email sent successfully:', data)
     return data
   } catch (error) {
