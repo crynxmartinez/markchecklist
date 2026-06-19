@@ -239,6 +239,7 @@ model Listing {
   tc              String?
   address         String?
   signUpDown      String?
+  listingPrice     Float?
   listingStartDate DateTime?
   listingExpDate   DateTime?
   takeSheetReceived String?
@@ -249,6 +250,7 @@ model Listing {
   sellersHwOrder   String?
   daysOffMarket    String?
   todaysDate       DateTime?
+  trustNameOrEntity String?
 
   clientLegalName String?
   clientPhone     String?
@@ -268,6 +270,7 @@ model Referral {
   id String @id @default(cuid())
 
   referralType    String?
+  dealType        String?
   side            String? // "Seller" / "Buyer"
   propertyAddress String?
   city            String?
@@ -294,12 +297,13 @@ model Referral {
   commission         String? // "$" or "%" mixed
   gci                Float?
   referralAmount     Float?
-  commissionType     String?
-  grossTotal         Float?
-  teamTotal          Float?
-  agentEstimate      Float?
-  agentCommission    Float?
-  escrowDisbursement Float?
+  commissionType       String?
+  grossTotal           Float?
+  teamTotal            Float?
+  agentEstimate        Float?
+  commissionAdjustments String?
+  agentCommission      Float?
+  escrowDisbursement   Float?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
