@@ -116,3 +116,241 @@ model ConversationRead {
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 }
+
+// ---------------------------------------------------------------------------
+// Transaction module (mirrors "Transaction Sheet 2026" workbook)
+// ---------------------------------------------------------------------------
+
+enum TransactionStatus {
+  PENDING
+  CLOSED
+  CANCELLED
+}
+
+enum ListingStatus {
+  ACTIVE
+  CLOSED
+  CANCELLED
+  EXPIRED
+}
+
+// Unifies "Pending 2026", "Closed 2026", "Cancelled 2026" and the
+// "Pending 2026 connected to Form" intake into a single record.
+model Transaction {
+  id        String            @id @default(cuid())
+  status    TransactionStatus @default(PENDING)
+
+  // Property
+  coeMonth        String?
+  side            String? // "Buyer" / "Seller"
+  propertyAddress String?
+  city            String?
+  state           String?
+  zipCode         String?
+  county          String?
+
+  // People
+  agentName   String?
+  agentPhone  String?
+  agentEmail  String?
+  pm          String? // Production Manager
+  isa         String?
+  tc          String? // Transaction Coordinator
+  tcEmail     String?
+  clientName  String?
+  clientPhone String?
+  clientEmail String?
+
+  // Vendors / contacts
+  otherAgentName    String?
+  otherAgentContact String?
+  escrowContact     String?
+  escrowPhone       String?
+  escrowEmail       String?
+  lender            String?
+  lenderPhone       String?
+  lenderEmail       String?
+  homeWarranty      String?
+  nhd               String?
+  title             String?
+
+  // Dates / quarters
+  quarterAccepted String?
+  acceptanceDate  DateTime?
+  contractCoe     DateTime?
+  closingDate     DateTime?
+  quarterClosed   String?
+
+  // Property details (from intake form)
+  solar      String?
+  hoa        String?
+  septic     String?
+  termite    String?
+  contingent String?
+  notes      String?
+  uploads    String?
+
+  // Financials
+  leadSource          String?
+  purchasePrice       Float?
+  commissionPct       Float?
+  gci                 Float?
+  transactionFee      Float?
+  tcFee               Float?
+  adminFee            Float?
+  listingAddOn        Float?
+  agentFeeCollected   Float?
+  additionalCollected Float?
+  additionalDeduction Float?
+  referralAmt         Float?
+  sellerAdvance       Float?
+  commissionType      String?
+  grossTotal          Float?
+  teamTotal           Float?
+  agentEstimate       Float?
+
+  // Follow-up / CRM
+  vaUpdate             String?
+  zillowPastSale       String?
+  reviewActionPlanSent String?
+
+  // Cancellation
+  clientStatus          String?
+  dateOfCancellation    DateTime?
+  cancelledBy           String?
+  reasonForCancellation String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+  @@index([agentName])
+  @@index([quarterClosed])
+}
+
+// Unifies "Listing Board 2026" and "Closed Canc Exp 2026".
+model Listing {
+  id     String        @id @default(cuid())
+  status ListingStatus @default(ACTIVE)
+
+  listingServices String?
+  listingShowcase String?
+  listingAgent    String?
+  tc              String?
+  address         String?
+  signUpDown      String?
+  listingStartDate DateTime?
+  listingExpDate   DateTime?
+  takeSheetReceived String?
+  commission       Float?
+  closingNotes     String?
+  sellerAdvance    Float?
+  agentFee         String? // mixed values e.g. "Agent Pay", "695"
+  sellersHwOrder   String?
+  daysOffMarket    String?
+  todaysDate       DateTime?
+
+  clientLegalName String?
+  clientPhone     String?
+  clientEmail     String?
+
+  reasonForCancellation String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+  @@index([listingAgent])
+}
+
+// "Referrals" tab.
+model Referral {
+  id String @id @default(cuid())
+
+  referralType    String?
+  side            String? // "Seller" / "Buyer"
+  propertyAddress String?
+  city            String?
+  zipCode         String?
+  county          String?
+
+  agentName   String?
+  isa         String?
+  am          String?
+  principal   String?
+  clientPhone String?
+  clientEmail String?
+
+  recipientAgent       String?
+  recipientAgentBroker String?
+  rfaStatus            String?
+
+  acceptanceDate     DateTime?
+  contractClosedDate DateTime?
+  actualClosingDate  DateTime?
+
+  leadSource         String?
+  purchasePrice      Float?
+  commission         String? // "$" or "%" mixed
+  gci                Float?
+  referralAmount     Float?
+  commissionType     String?
+  grossTotal         Float?
+  teamTotal          Float?
+  agentEstimate      Float?
+  agentCommission    Float?
+  escrowDisbursement Float?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([rfaStatus])
+  @@index([agentName])
+}
+
+// "Agent Reimbursements" tab.
+model Reimbursement {
+  id      String  @id @default(cuid())
+  agent   String?
+  listing String?
+  item    String?
+  amount  Float?
+  notes   String?
+  status  String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// "Agent Contracts" tab (onboarding + commission terms).
+model AgentContract {
+  id        String @id @default(cuid())
+  agentName String?
+
+  soi                  Float?
+  chtContractSent      DateTime?
+  chtContractSigned    DateTime?
+  chtContractEffective DateTime?
+  anniversaryDate      DateTime?
+  dateToReviewSoiSplit DateTime?
+  expContractSigned    String?
+  dateOnboardingCompleted DateTime?
+  soiCap               String?
+  referralAgent        String?
+  productionManager    String?
+  dateAssignedToPm     String?
+  eaProgramAssignedDate String?
+  transactionsPaidEa   String?
+  tcServicesSubscribedDate String?
+  fubAccount           String?
+  disc                 String?
+  adminBill            String?
+  source               String?
+  zillowAccountabilityAgreement String?
+  payNotes             String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([agentName])
+}
