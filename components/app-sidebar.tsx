@@ -1,7 +1,7 @@
 'use client'
 
 import * as React from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, usePathname } from 'next/navigation'
 import {
   LayoutDashboard,
   Users,
@@ -11,8 +11,13 @@ import {
   LogOut,
   User,
   ChevronUp,
+  ChevronRight,
   MessageSquare,
   Receipt,
+  Home,
+  Share2,
+  DollarSign,
+  UserCog,
 } from 'lucide-react'
 
 import {
@@ -26,6 +31,9 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarMenuSub,
+  SidebarMenuSubButton,
+  SidebarMenuSubItem,
 } from '@/components/ui/sidebar'
 import {
   DropdownMenu,
@@ -36,7 +44,23 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 
-const menuItems = [
+type IconType = React.ComponentType<{ className?: string }>
+
+interface SubMenuItem {
+  title: string
+  url: string
+  icon: IconType
+}
+
+interface MenuItem {
+  title: string
+  icon: IconType
+  url?: string
+  module: string | null
+  children?: SubMenuItem[]
+}
+
+const menuItems: MenuItem[] = [
   {
     title: 'Dashboard',
     icon: LayoutDashboard,
@@ -46,8 +70,39 @@ const menuItems = [
   {
     title: 'Transaction',
     icon: Receipt,
-    url: '/dashboard/transaction',
     module: null,
+    children: [
+      {
+        title: 'Transaction Dashboard',
+        url: '/dashboard/transaction',
+        icon: LayoutDashboard,
+      },
+      {
+        title: 'Transactions',
+        url: '/dashboard/transaction/transactions',
+        icon: Receipt,
+      },
+      {
+        title: 'Listings',
+        url: '/dashboard/transaction/listings',
+        icon: Home,
+      },
+      {
+        title: 'Referrals',
+        url: '/dashboard/transaction/referrals',
+        icon: Share2,
+      },
+      {
+        title: 'Reimbursements',
+        url: '/dashboard/transaction/reimbursements',
+        icon: DollarSign,
+      },
+      {
+        title: 'Agents',
+        url: '/dashboard/transaction/agents',
+        icon: UserCog,
+      },
+    ],
   },
   {
     title: 'Recruitment',
@@ -98,6 +153,10 @@ interface AppSidebarProps {
 
 export function AppSidebar({ user }: AppSidebarProps) {
   const router = useRouter()
+  const pathname = usePathname()
+  const [openGroups, setOpenGroups] = React.useState<Record<string, boolean>>(
+    {}
+  )
 
   const handleLogout = async () => {
     await fetch('/api/auth/logout', { method: 'POST' })
@@ -127,16 +186,58 @@ export function AppSidebar({ user }: AppSidebarProps) {
           <SidebarGroupLabel>Navigation</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {filteredMenuItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <a href={item.url}>
-                    <SidebarMenuButton>
-                      <item.icon className="h-4 w-4" />
-                      <span>{item.title}</span>
-                    </SidebarMenuButton>
-                  </a>
-                </SidebarMenuItem>
-              ))}
+              {filteredMenuItems.map((item) => {
+                if (item.children) {
+                  const isOpen =
+                    openGroups[item.title] ??
+                    item.children.some((child) => pathname === child.url)
+                  return (
+                    <SidebarMenuItem key={item.title}>
+                      <SidebarMenuButton
+                        onClick={() =>
+                          setOpenGroups((prev) => ({
+                            ...prev,
+                            [item.title]: !isOpen,
+                          }))
+                        }
+                      >
+                        <item.icon className="h-4 w-4" />
+                        <span>{item.title}</span>
+                        <ChevronRight
+                          className={`ml-auto h-4 w-4 transition-transform ${
+                            isOpen ? 'rotate-90' : ''
+                          }`}
+                        />
+                      </SidebarMenuButton>
+                      {isOpen && (
+                        <SidebarMenuSub>
+                          {item.children.map((child) => (
+                            <SidebarMenuSubItem key={child.title}>
+                              <SidebarMenuSubButton
+                                href={child.url}
+                                isActive={pathname === child.url}
+                              >
+                                <child.icon className="h-4 w-4" />
+                                <span>{child.title}</span>
+                              </SidebarMenuSubButton>
+                            </SidebarMenuSubItem>
+                          ))}
+                        </SidebarMenuSub>
+                      )}
+                    </SidebarMenuItem>
+                  )
+                }
+                return (
+                  <SidebarMenuItem key={item.title}>
+                    <a href={item.url}>
+                      <SidebarMenuButton isActive={pathname === item.url}>
+                        <item.icon className="h-4 w-4" />
+                        <span>{item.title}</span>
+                      </SidebarMenuButton>
+                    </a>
+                  </SidebarMenuItem>
+                )
+              })}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
