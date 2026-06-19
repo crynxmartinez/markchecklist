@@ -12,6 +12,7 @@ import {
   User,
   ChevronUp,
   MessageSquare,
+  Receipt,
 } from 'lucide-react'
 
 import {
@@ -40,6 +41,12 @@ const menuItems = [
     title: 'Dashboard',
     icon: LayoutDashboard,
     url: '/dashboard',
+    module: null,
+  },
+  {
+    title: 'Transaction',
+    icon: Receipt,
+    url: '/dashboard/transaction',
     module: null,
   },
   {
