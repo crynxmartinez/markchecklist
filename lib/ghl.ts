@@ -274,6 +274,37 @@ export async function createGHLContact(params: CreateContactParams) {
   }
 }
 
+// Upserts a contact in GHL (finds existing by email/phone, or creates).
+// Returns the contact id so we can send messages to it.
+export async function upsertGHLContact(params: CreateContactParams) {
+  const response = await fetch(`${GHL_API_BASE}/contacts/upsert`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${params.apiKey}`,
+      Version: GHL_API_VERSION,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      firstName: params.firstName,
+      lastName: params.lastName,
+      email: params.email,
+      phone: params.phone,
+      tags: params.tags || [],
+      source: params.source,
+      locationId: params.locationId,
+    }),
+  })
+
+  if (!response.ok) {
+    const errorText = await response.text()
+    console.error('GHL upsert contact error:', errorText)
+    throw new Error(`Failed to upsert contact: ${response.status} - ${errorText}`)
+  }
+
+  const data = await response.json()
+  return data.contact as GHLContact
+}
+
 export async function updateGHLContact(params: UpdateContactParams) {
   try {
     console.log('Updating GHL contact:', params.contactId)

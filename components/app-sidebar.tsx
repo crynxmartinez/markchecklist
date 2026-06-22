@@ -13,6 +13,7 @@ import {
   ChevronUp,
   ChevronRight,
   MessageSquare,
+  Megaphone,
   Receipt,
   Home,
   Share2,
@@ -114,6 +115,12 @@ const menuItems: MenuItem[] = [
     title: 'Conversations',
     icon: MessageSquare,
     url: '/dashboard/conversations',
+    module: null,
+  },
+  {
+    title: 'Broadcasts',
+    icon: Megaphone,
+    url: '/dashboard/broadcasts',
     module: null,
   },
   {

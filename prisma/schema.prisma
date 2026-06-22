@@ -358,3 +358,38 @@ model AgentContract {
 
   @@index([agentName])
 }
+
+// Bulk message campaign ("Broadcasts").
+model Broadcast {
+  id           String               @id @default(cuid())
+  channel      String // "SMS" | "EMAIL"
+  audience     String // human-readable snapshot, e.g. "Agents: Active"
+  subject      String?
+  message      String
+  total        Int                  @default(0)
+  sentCount    Int                  @default(0)
+  failedCount  Int                  @default(0)
+  skippedCount Int                  @default(0)
+  status       String               @default("SENDING") // SENDING | COMPLETED
+  createdBy    String?
+  createdAt    DateTime             @default(now())
+  recipients   BroadcastRecipient[]
+
+  @@index([createdAt])
+}
+
+model BroadcastRecipient {
+  id          String    @id @default(cuid())
+  broadcastId String
+  broadcast   Broadcast @relation(fields: [broadcastId], references: [id], onDelete: Cascade)
+  agentId     String?
+  name        String?
+  email       String?
+  phone       String?
+  contactId   String? // resolved GHL contact id used to send
+  status      String // SENT | FAILED | SKIPPED
+  error       String?
+  createdAt   DateTime  @default(now())
+
+  @@index([broadcastId])
+}
