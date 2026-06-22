@@ -36,6 +36,14 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 
 interface Recipient {
   id: string
@@ -110,6 +118,8 @@ export default function BroadcastsPage() {
   const [selected, setSelected] = useState<Set<string>>(new Set())
 
   const [sending, setSending] = useState(false)
+  const [confirmOpen, setConfirmOpen] = useState(false)
+  const [errorMsg, setErrorMsg] = useState<string | null>(null)
   const [progress, setProgress] = useState({ done: 0, total: 0 })
   const [summary, setSummary] = useState<
     { sent: number; failed: number; skipped: number } | null
@@ -199,6 +209,11 @@ export default function BroadcastsPage() {
     [toSend]
   )
   const willSkip = selectedRecipients.length - toSend.length
+  const eligible = useMemo(
+    () => (createMissing ? toSend : toSend.filter((r) => r.contactId)),
+    [toSend, createMissing]
+  )
+  const audienceLabel = audience === 'ADMIN' ? 'admin' : 'agent'
 
   const toggle = (id: string) => {
     setSelected((prev) => {
@@ -230,19 +245,17 @@ export default function BroadcastsPage() {
     (channel === 'SMS' || subject.trim().length > 0) &&
     toSend.length > 0
 
-  const handleSend = async () => {
-    const eligible = createMissing ? toSend : toSend.filter((r) => r.contactId)
+  const requestSend = () => {
     if (eligible.length === 0) {
-      alert('No reachable recipients selected.')
+      setErrorMsg('No reachable recipients selected.')
       return
     }
-    const confirmed = window.confirm(
-      `Send ${channel} to ${eligible.length} agent(s)?` +
-        (needCreate.length && createMissing
-          ? `\n\n${needCreate.length} new GHL contact(s) will be created.`
-          : '')
-    )
-    if (!confirmed) return
+    setConfirmOpen(true)
+  }
+
+  const handleSend = async () => {
+    setConfirmOpen(false)
+    if (eligible.length === 0) return
 
     setSending(true)
     setSummary(null)
@@ -262,7 +275,7 @@ export default function BroadcastsPage() {
       })
       const createData = await createRes.json()
       if (!createData.success) {
-        alert(createData.error || 'Failed to create broadcast')
+        setErrorMsg(createData.error || 'Failed to create broadcast')
         setSending(false)
         return
       }
@@ -312,7 +325,7 @@ export default function BroadcastsPage() {
       fetchRecipients(audience)
     } catch (e) {
       console.error('Send error', e)
-      alert('Error sending broadcast')
+      setErrorMsg('Something went wrong while sending. Please try again.')
     } finally {
       setSending(false)
     }
@@ -467,9 +480,9 @@ export default function BroadcastsPage() {
               </div>
             )}
 
-            <Button className="w-full" onClick={handleSend} disabled={!canSend}>
+            <Button className="w-full" onClick={requestSend} disabled={!canSend}>
               <Send className="mr-2 h-4 w-4" />
-              {sending ? 'Sending...' : `Send to ${toSend.length} agent(s)`}
+              {sending ? 'Sending...' : `Send to ${toSend.length} ${audienceLabel}(s)`}
             </Button>
           </CardContent>
         </Card>
@@ -648,6 +661,74 @@ export default function BroadcastsPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Send confirmation */}
+      <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              {channel === 'SMS' ? (
+                <MessageSquare className="h-5 w-5 text-primary" />
+              ) : (
+                <Mail className="h-5 w-5 text-primary" />
+              )}
+              Send {channel === 'SMS' ? 'SMS' : 'Email'}?
+            </DialogTitle>
+            <DialogDescription>
+              You&apos;re about to send to{' '}
+              <span className="font-medium text-foreground">
+                {eligible.length} {audienceLabel}
+                {eligible.length === 1 ? '' : 's'}
+              </span>
+              .
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-2 text-sm">
+            {needCreate.length > 0 && createMissing && (
+              <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-amber-800">
+                {needCreate.length} new GHL contact
+                {needCreate.length === 1 ? '' : 's'} will be created.
+              </div>
+            )}
+            {willSkip > 0 && (
+              <div className="rounded-lg border bg-muted/50 px-3 py-2 text-muted-foreground">
+                {willSkip} selected recipient{willSkip === 1 ? '' : 's'} will be
+                skipped (not reachable on {channel}).
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleSend}>
+              <Send className="mr-2 h-4 w-4" />
+              Send now
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Error notice */}
+      <Dialog
+        open={errorMsg !== null}
+        onOpenChange={(open) => !open && setErrorMsg(null)}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <XCircle className="h-5 w-5 text-destructive" />
+              Unable to send
+            </DialogTitle>
+            <DialogDescription>{errorMsg}</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button onClick={() => setErrorMsg(null)}>Got it</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
