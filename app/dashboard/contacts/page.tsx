@@ -27,6 +27,7 @@ import { Label } from '@/components/ui/label'
 import { Checkbox } from '@/components/ui/checkbox'
 import { ContactDetailModal } from '@/components/contact-detail-modal'
 import { AgentRosterTab } from '@/components/agent-roster-tab'
+import { AdminRosterTab } from '@/components/admin-roster-tab'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 
 interface Contact {
@@ -485,10 +486,9 @@ export default function ContactsPage() {
             Agent Roster
             {agentCount > 0 && <Badge variant="secondary" className="ml-1">{agentCount}</Badge>}
           </TabsTrigger>
-          <TabsTrigger value="admins" className="flex items-center gap-2" disabled>
+          <TabsTrigger value="admins" className="flex items-center gap-2">
             <Shield className="h-4 w-4" />
             Admin Roster
-            <Badge variant="outline" className="ml-1 text-xs">Soon</Badge>
           </TabsTrigger>
         </TabsList>
 
@@ -736,10 +736,7 @@ export default function ContactsPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="text-center py-12 text-muted-foreground">
-                <Shield className="mx-auto h-12 w-12 mb-4" />
-                <p>Admin Roster coming soon</p>
-              </div>
+              <AdminRosterTab />
             </CardContent>
           </Card>
         </TabsContent>

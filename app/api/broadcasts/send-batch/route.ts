@@ -34,6 +34,7 @@ export async function POST(request: Request) {
     const body = await request.json()
     const {
       broadcastId,
+      audience,
       channel,
       subject,
       message,
@@ -42,6 +43,7 @@ export async function POST(request: Request) {
       recipients,
     } = body as {
       broadcastId: string
+      audience?: 'AGENT' | 'ADMIN'
       channel: 'SMS' | 'EMAIL'
       subject?: string
       message: string
@@ -79,14 +81,17 @@ export async function POST(request: Request) {
             apiKey,
           })
           contactId = contact?.id || null
-          // Cache the resolved id on the agent for next time.
+          // Cache the resolved id on the source record for next time.
           if (contactId && r.agentId) {
-            await prisma.agent
-              .update({
-                where: { id: r.agentId },
-                data: { ghlContactId: contactId },
-              })
-              .catch(() => undefined)
+            if (audience === 'ADMIN') {
+              await prisma.admin
+                .update({ where: { id: r.agentId }, data: { ghlContactId: contactId } })
+                .catch(() => undefined)
+            } else {
+              await prisma.agent
+                .update({ where: { id: r.agentId }, data: { ghlContactId: contactId } })
+                .catch(() => undefined)
+            }
           }
         } catch (err) {
           console.error('upsert failed for', r.name, err)

@@ -35,6 +35,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 
 interface Recipient {
   id: string
@@ -69,6 +70,7 @@ interface Broadcast {
 }
 
 type Channel = 'SMS' | 'EMAIL'
+type Audience = 'AGENT' | 'ADMIN'
 
 const BATCH_SIZE = 5
 const ALL = '__all__'
@@ -86,6 +88,7 @@ export default function BroadcastsPage() {
   const [loading, setLoading] = useState(true)
   const [history, setHistory] = useState<Broadcast[]>([])
 
+  const [audience, setAudience] = useState<Audience>('AGENT')
   const [channel, setChannel] = useState<Channel>('SMS')
   const [subject, setSubject] = useState('')
   const [message, setMessage] = useState('')
@@ -101,13 +104,16 @@ export default function BroadcastsPage() {
     { sent: number; failed: number; skipped: number } | null
   >(null)
 
-  const fetchAgents = async () => {
+  const fetchRecipients = async (aud: Audience) => {
+    setLoading(true)
     try {
-      const res = await fetch('/api/broadcasts/agents')
+      const url =
+        aud === 'ADMIN' ? '/api/broadcasts/admins' : '/api/broadcasts/agents'
+      const res = await fetch(url)
       const data = await res.json()
       setRecipients(data.recipients || [])
     } catch (e) {
-      console.error('Failed to load agents', e)
+      console.error('Failed to load recipients', e)
     } finally {
       setLoading(false)
     }
@@ -124,9 +130,16 @@ export default function BroadcastsPage() {
   }
 
   useEffect(() => {
-    fetchAgents()
     fetchHistory()
   }, [])
+
+  // Reload recipients and reset selection/filters when switching audience.
+  useEffect(() => {
+    fetchRecipients(audience)
+    setSelected(new Set())
+    setFilters({})
+    setSummary(null)
+  }, [audience])
 
   const filterOptions = useMemo(() => {
     const opts: Record<string, string[]> = {}
@@ -230,7 +243,7 @@ export default function BroadcastsPage() {
           channel,
           subject,
           message,
-          audience: describeAudience(filters, eligible.length),
+          audience: describeAudience(audience, filters, eligible.length),
           total: eligible.length,
         }),
       })
@@ -254,6 +267,7 @@ export default function BroadcastsPage() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             broadcastId,
+            audience,
             channel,
             subject,
             message,
@@ -281,8 +295,8 @@ export default function BroadcastsPage() {
 
       setSummary({ sent, failed, skipped })
       await fetchHistory()
-      // Refresh agents so newly-created GHL contact ids are reflected.
-      fetchAgents()
+      // Refresh recipients so newly-created GHL contact ids are reflected.
+      fetchRecipients(audience)
     } catch (e) {
       console.error('Send error', e)
       alert('Error sending broadcast')
@@ -298,10 +312,17 @@ export default function BroadcastsPage() {
         <div>
           <h1 className="text-3xl font-bold">Broadcasts</h1>
           <p className="text-muted-foreground">
-            Send bulk SMS or email to agents via GoHighLevel
+            Send bulk SMS or email via GoHighLevel
           </p>
         </div>
       </div>
+
+      <Tabs value={audience} onValueChange={(v) => setAudience(v as Audience)}>
+        <TabsList>
+          <TabsTrigger value="AGENT">Agents</TabsTrigger>
+          <TabsTrigger value="ADMIN">Admins</TabsTrigger>
+        </TabsList>
+      </Tabs>
 
       <div className="grid gap-6 lg:grid-cols-5">
         {/* Composer */}
@@ -466,6 +487,7 @@ export default function BroadcastsPage() {
                 )}
               </div>
             </div>
+            {audience === 'AGENT' && (
             <div className="flex flex-wrap gap-2 pt-2">
               {FILTERS.map(({ key, label }) => (
                 <Select
@@ -493,11 +515,12 @@ export default function BroadcastsPage() {
                 </Select>
               ))}
             </div>
+            )}
           </CardHeader>
           <CardContent>
             {loading ? (
               <div className="py-12 text-center text-muted-foreground">
-                Loading agents...
+                Loading recipients...
               </div>
             ) : (
               <div className="max-h-[480px] overflow-auto rounded-md border">
@@ -619,14 +642,18 @@ export default function BroadcastsPage() {
 }
 
 function describeAudience(
+  audience: Audience,
   filters: Record<string, string>,
   count: number
 ): string {
+  const group = audience === 'ADMIN' ? 'Admins' : 'Agents'
   const parts: string[] = []
-  for (const { key, label } of FILTERS) {
-    const v = filters[key]
-    if (v && v !== ALL) parts.push(`${label}=${v}`)
+  if (audience === 'AGENT') {
+    for (const { key, label } of FILTERS) {
+      const v = filters[key]
+      if (v && v !== ALL) parts.push(`${label}=${v}`)
+    }
   }
-  const base = parts.length ? `Agents (${parts.join(', ')})` : 'Agents'
+  const base = parts.length ? `${group} (${parts.join(', ')})` : group
   return `${base} · ${count}`
 }
