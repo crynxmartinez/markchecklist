@@ -47,6 +47,7 @@ interface Agent {
   language?: string
   mlsId?: string
   subscription?: string
+  isaServices?: string
   tc?: string
   source?: string
   ghlContactId?: string
@@ -90,6 +91,7 @@ export function AgentRosterTab({ onSelectionChange, onAgentsLoaded }: AgentRoste
     language: '',
     mlsId: '',
     subscription: '',
+    isaServices: '',
     tc: '',
     source: '',
   })
@@ -208,6 +210,7 @@ export function AgentRosterTab({ onSelectionChange, onAgentsLoaded }: AgentRoste
       language: agent.language || '',
       mlsId: agent.mlsId || '',
       subscription: agent.subscription || '',
+      isaServices: agent.isaServices || '',
       tc: agent.tc || '',
       source: agent.source || '',
     })
@@ -605,6 +608,21 @@ export function AgentRosterTab({ onSelectionChange, onAgentsLoaded }: AgentRoste
                   <SelectItem value="Yes">Yes</SelectItem>
                   <SelectItem value="No">No</SelectItem>
                   <SelectItem value="Outside">Outside</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>ISA Services</Label>
+              <Select
+                value={formData.isaServices}
+                onValueChange={(value) => value && setFormData({ ...formData, isaServices: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Yes">Yes</SelectItem>
+                  <SelectItem value="No">No</SelectItem>
                 </SelectContent>
               </Select>
             </div>

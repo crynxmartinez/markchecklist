@@ -54,6 +54,7 @@ export async function PUT(
     if (body.language !== undefined) updateData.language = body.language || null
     if (body.mlsId !== undefined) updateData.mlsId = body.mlsId || null
     if (body.subscription !== undefined) updateData.subscription = body.subscription || null
+    if (body.isaServices !== undefined) updateData.isaServices = body.isaServices || null
     if (body.tc !== undefined) updateData.tc = body.tc || null
     if (body.source !== undefined) updateData.source = body.source || null
     if (body.ghlContactId !== undefined) updateData.ghlContactId = body.ghlContactId || null

@@ -47,7 +47,8 @@ model Agent {
   anniversary      String?   // MM-DD-YYYY format
   language         String?   // Spanish, Romanian, etc.
   mlsId            String?   // MLS ID
-  subscription     String?   // Yes, No, Outside
+  subscription     String?   // TC Subscription: Yes, No, Outside
+  isaServices      String?   // ISA Services: Yes, No
   tc               String?   // Transaction Coordinator (Alexis, Kenia, Outside)
   source           String?   // Referral, FB, etc.
   ghlContactId     String?   // Link to GHL contact if exists

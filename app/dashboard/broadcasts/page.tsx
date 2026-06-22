@@ -48,6 +48,8 @@ interface Recipient {
   tc: string | null
   subscription: string | null
   source: string | null
+  title: string | null
+  language: string | null
   contactId: string | null
   hasEmail: boolean
   hasPhone: boolean
@@ -82,6 +84,15 @@ const FILTERS: { key: keyof Recipient; label: string }[] = [
   { key: 'tc', label: 'TC' },
   { key: 'subscription', label: 'Subscription' },
 ]
+
+const ADMIN_FILTERS: { key: keyof Recipient; label: string }[] = [
+  { key: 'title', label: 'Role' },
+  { key: 'language', label: 'Language' },
+]
+
+function filtersFor(audience: Audience) {
+  return audience === 'ADMIN' ? ADMIN_FILTERS : FILTERS
+}
 
 export default function BroadcastsPage() {
   const [recipients, setRecipients] = useState<Recipient[]>([])
@@ -141,9 +152,11 @@ export default function BroadcastsPage() {
     setSummary(null)
   }, [audience])
 
+  const activeFilters = filtersFor(audience)
+
   const filterOptions = useMemo(() => {
     const opts: Record<string, string[]> = {}
-    for (const { key } of FILTERS) {
+    for (const { key } of activeFilters) {
       const set = new Set<string>()
       for (const r of recipients) {
         const v = r[key]
@@ -157,7 +170,7 @@ export default function BroadcastsPage() {
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
     return recipients.filter((r) => {
-      for (const { key } of FILTERS) {
+      for (const { key } of activeFilters) {
         const f = filters[key]
         if (f && f !== ALL && String(r[key] ?? '') !== f) return false
       }
@@ -487,9 +500,8 @@ export default function BroadcastsPage() {
                 )}
               </div>
             </div>
-            {audience === 'AGENT' && (
             <div className="flex flex-wrap gap-2 pt-2">
-              {FILTERS.map(({ key, label }) => (
+              {activeFilters.map(({ key, label }) => (
                 <Select
                   key={key}
                   value={filters[key] || ALL}
@@ -515,7 +527,6 @@ export default function BroadcastsPage() {
                 </Select>
               ))}
             </div>
-            )}
           </CardHeader>
           <CardContent>
             {loading ? (
@@ -648,11 +659,9 @@ function describeAudience(
 ): string {
   const group = audience === 'ADMIN' ? 'Admins' : 'Agents'
   const parts: string[] = []
-  if (audience === 'AGENT') {
-    for (const { key, label } of FILTERS) {
-      const v = filters[key]
-      if (v && v !== ALL) parts.push(`${label}=${v}`)
-    }
+  for (const { key, label } of filtersFor(audience)) {
+    const v = filters[key]
+    if (v && v !== ALL) parts.push(`${label}=${v}`)
   }
   const base = parts.length ? `${group} (${parts.join(', ')})` : group
   return `${base} · ${count}`
