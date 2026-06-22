@@ -476,7 +476,11 @@ export default function BroadcastsPage() {
                   }
                 >
                   <SelectTrigger className="h-8 w-[150px]">
-                    <SelectValue placeholder={label} />
+                    <SelectValue placeholder={label}>
+                      {(value: string) =>
+                        !value || value === ALL ? `All ${label}` : value
+                      }
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value={ALL}>All {label}</SelectItem>
