@@ -441,6 +441,13 @@ export default function ContactsPage() {
           <div className="flex gap-2">
             <Button
               variant="outline"
+              onClick={() => agentTabRef.current?.openCreate()}
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              New Agent
+            </Button>
+            <Button
+              variant="outline"
               onClick={() => agentTabRef.current?.openEdit()}
               disabled={selectedAgentCount !== 1}
             >

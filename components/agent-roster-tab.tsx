@@ -57,6 +57,7 @@ interface Agent {
 }
 
 export interface AgentRosterTabHandle {
+  openCreate: () => void
   openEdit: () => void
   pushToGHL: () => Promise<void>
   deleteSelected: () => Promise<void>
@@ -294,7 +295,19 @@ export const AgentRosterTab = forwardRef<AgentRosterTabHandle, AgentRosterTabPro
     if (agent) openEditDialog(agent)
   }
 
+  const handleOpenCreate = () => {
+    setEditingAgent(null)
+    setFormData({
+      name: '', email: '', phone: '', status: '', leadTeam: '', coach: '',
+      agentDevelopment: '', dre: '', dreExpiration: '', birthday: '',
+      anniversary: '', language: '', mlsId: '', subscription: '',
+      isaServices: '', tc: '', source: '',
+    })
+    setEditDialogOpen(true)
+  }
+
   useImperativeHandle(ref, () => ({
+    openCreate: handleOpenCreate,
     openEdit: openEditFromSelection,
     pushToGHL: handlePushSelectedToGHL,
     deleteSelected: handleDeleteSelected,
@@ -302,46 +315,62 @@ export const AgentRosterTab = forwardRef<AgentRosterTabHandle, AgentRosterTabPro
   }))
 
   const handleSaveAgent = async () => {
-    if (!editingAgent) return
     setSaving(true)
     setMessage('')
-
     try {
-      // Save to CHT database
-      const response = await fetch(`/api/agents/${editingAgent.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
-      })
-
-      if (!response.ok) {
-        throw new Error('Failed to save agent')
-      }
-
-      const data = await response.json()
-      setAgents(prev => prev.map(a => a.id === editingAgent.id ? data.agent : a))
-      const msg = `Saved ${formData.name} successfully`
-      setMessage(msg)
-      onMessage?.(msg)
-      setEditDialogOpen(false)
-
-      if (editingAgent.ghlContactId) {
-        try {
-          await fetch('/api/agents/push-to-ghl', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ agentIds: [editingAgent.id] }),
-          })
-          const m2 = `Saved ${formData.name} and synced to GHL`
-          setMessage(m2)
-          onMessage?.(m2)
-        } catch {
-          setMessage(`Saved ${formData.name} (GHL sync failed)`)
+      if (editingAgent) {
+        // Update existing agent
+        const response = await fetch(`/api/agents/${editingAgent.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(formData),
+        })
+        if (!response.ok) throw new Error('Failed to save agent')
+        const data = await response.json()
+        setAgents(prev => prev.map(a => a.id === editingAgent.id ? data.agent : a))
+        const msg = `Saved ${formData.name} successfully`
+        setMessage(msg)
+        onMessage?.(msg)
+        setEditDialogOpen(false)
+        if (editingAgent.ghlContactId) {
+          try {
+            await fetch('/api/agents/push-to-ghl', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ agentIds: [editingAgent.id] }),
+            })
+            const m2 = `Saved ${formData.name} and synced to GHL`
+            setMessage(m2)
+            onMessage?.(m2)
+          } catch {
+            setMessage(`Saved ${formData.name} (GHL sync failed)`)
+          }
         }
+      } else {
+        // Create new agent
+        if (!formData.name || !formData.email) {
+          setMessage('Name and email are required')
+          return
+        }
+        const response = await fetch('/api/agents', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(formData),
+        })
+        if (!response.ok) {
+          const err = await response.json()
+          throw new Error(err.error || 'Failed to create agent')
+        }
+        const newAgent = await response.json()
+        setAgents(prev => [...prev, newAgent].sort((a, b) => a.name.localeCompare(b.name)))
+        const msg = `Added ${formData.name} successfully`
+        setMessage(msg)
+        onMessage?.(msg)
+        setEditDialogOpen(false)
       }
     } catch (error) {
       console.error('Error saving agent:', error)
-      setMessage('Failed to save agent')
+      setMessage(error instanceof Error ? error.message : 'Failed to save agent')
     } finally {
       setSaving(false)
     }
@@ -551,7 +580,7 @@ export const AgentRosterTab = forwardRef<AgentRosterTabHandle, AgentRosterTabPro
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Edit Agent</DialogTitle>
+            <DialogTitle>{editingAgent ? 'Edit Agent' : 'New Agent'}</DialogTitle>
             <DialogDescription>
               Update agent information. Changes will be saved to CHT database and synced to GHL.
             </DialogDescription>

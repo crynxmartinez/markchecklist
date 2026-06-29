@@ -281,13 +281,8 @@ export const AdminRosterTab = forwardRef<AdminRosterTabHandle, AdminRosterTabPro
             </button>
           )}
         </div>
-        <div className="flex items-center gap-3">
-          <span className="text-sm text-muted-foreground">
-            {filtered.length} admins
-          </span>
-          <Button size="sm" onClick={openCreate}>
-            Add Admin
-          </Button>
+        <div className="text-sm text-muted-foreground">
+          {filtered.length} admins
         </div>
       </div>
 
