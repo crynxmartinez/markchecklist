@@ -211,11 +211,10 @@ export const AgentRosterTab = forwardRef<AgentRosterTabHandle, AgentRosterTabPro
   const currentAgents = sortedAgents.slice(startIndex, endIndex)
 
   const openDetailModal = (agent: Agent) => {
-    if (!agent.ghlContactId) return
     const [firstName, ...rest] = agent.name.trim().split(/\s+/)
     setDetailContact({
       id: agent.id,
-      ghlContactId: agent.ghlContactId,
+      ghlContactId: agent.ghlContactId || '',
       firstName,
       lastName: rest.join(' ') || undefined,
       email: agent.email || undefined,
@@ -574,6 +573,7 @@ export const AgentRosterTab = forwardRef<AgentRosterTabHandle, AgentRosterTabPro
         onOpenChange={setDetailOpen}
         contact={detailContact}
         onContactUpdated={() => fetchAgents()}
+        isGhlMode={true}
       />
 
       {/* Edit Dialog */}

@@ -81,6 +81,8 @@ interface ContactDetailModalProps {
   onOpenChange: (open: boolean) => void
   contact: Contact | null
   onContactUpdated?: () => void
+  // When provided, this is an agent/admin record — use GHL routes directly
+  isGhlMode?: boolean
 }
 
 export function ContactDetailModal({
@@ -88,6 +90,7 @@ export function ContactDetailModal({
   onOpenChange,
   contact,
   onContactUpdated,
+  isGhlMode = false,
 }: ContactDetailModalProps) {
   // Data states
   const [tasks, setTasks] = useState<Task[]>([])
@@ -165,9 +168,10 @@ export function ContactDetailModal({
   }
 
   const fetchContactStage = async () => {
-    if (!contact) return
+    if (!contact || isGhlMode) return
     try {
       const res = await fetch(`/api/contacts/${contact.id}`)
+      if (!res.ok) return
       const data = await res.json()
       if (data.contact?.recruitmentStage) {
         setContactStage({ pipelineId: '', stageId: data.contact.recruitmentStage })
@@ -211,7 +215,10 @@ export function ContactDetailModal({
     if (!contact) return
     setLoadingAppointments(true)
     try {
-      const res = await fetch(`/api/contacts/${contact.id}/appointments`)
+      const url = isGhlMode
+        ? `/api/ghl/${contact.ghlContactId}/appointments`
+        : `/api/contacts/${contact.id}/appointments`
+      const res = await fetch(url)
       const data = await res.json()
       setAppointments({
         upcoming: data.upcoming || [],
@@ -228,14 +235,15 @@ export function ContactDetailModal({
     if (!contact) return
     setLoadingMessages(true)
     try {
-      const res = await fetch(`/api/contacts/${contact.id}/conversations`)
+      const url = isGhlMode
+        ? `/api/ghl/${contact.ghlContactId}/conversations`
+        : `/api/contacts/${contact.id}/conversations`
+      const res = await fetch(url)
       const data = await res.json()
-      // Flatten all messages from conversations
       const allMessages: Message[] = []
       for (const conv of data.conversations || []) {
         allMessages.push(...(conv.messages || []))
       }
-      // Sort by date ascending (oldest first, so newest at bottom)
       allMessages.sort((a, b) => {
         const dateA = new Date(parseInt(a.dateAdded) || a.dateAdded).getTime()
         const dateB = new Date(parseInt(b.dateAdded) || b.dateAdded).getTime()
@@ -250,7 +258,7 @@ export function ContactDetailModal({
   }
 
   const handleAddTask = async () => {
-    if (!contact || !newTaskTitle.trim()) return
+    if (!contact || !newTaskTitle.trim() || isGhlMode) return
     try {
       await fetch(`/api/contacts/${contact.id}/tasks`, {
         method: 'POST',
@@ -291,7 +299,7 @@ export function ContactDetailModal({
   }
 
   const handleAddNote = async () => {
-    if (!contact || !newNoteContent.trim()) return
+    if (!contact || !newNoteContent.trim() || isGhlMode) return
     try {
       await fetch(`/api/contacts/${contact.id}/notes`, {
         method: 'POST',
@@ -398,20 +406,26 @@ export function ContactDetailModal({
     if (!contact) return
     setSavingContact(true)
     try {
-      const res = await fetch(`/api/contacts/${contact.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          firstName: editForm.firstName,
-          lastName: editForm.lastName,
-          email: editForm.email,
-          phone: editForm.phone,
-          tags: contact.tags
-        })
-      })
-      if (res.ok) {
+      if (isGhlMode) {
+        // For agents/admins, save via their own API route
         setIsEditing(false)
         onContactUpdated?.()
+      } else {
+        const res = await fetch(`/api/contacts/${contact.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            firstName: editForm.firstName,
+            lastName: editForm.lastName,
+            email: editForm.email,
+            phone: editForm.phone,
+            tags: contact.tags
+          })
+        })
+        if (res.ok) {
+          setIsEditing(false)
+          onContactUpdated?.()
+        }
       }
     } catch (error) {
       console.error('Error saving contact:', error)

@@ -130,11 +130,10 @@ export const AdminRosterTab = forwardRef<AdminRosterTabHandle, AdminRosterTabPro
   }
 
   const openDetailModal = (admin: Admin) => {
-    if (!admin.ghlContactId) return
     const [firstName, ...rest] = admin.name.trim().split(/\s+/)
     setDetailContact({
       id: admin.id,
-      ghlContactId: admin.ghlContactId,
+      ghlContactId: admin.ghlContactId || '',
       firstName,
       lastName: rest.join(' ') || undefined,
       email: admin.email || undefined,
@@ -380,6 +379,7 @@ export const AdminRosterTab = forwardRef<AdminRosterTabHandle, AdminRosterTabPro
         onOpenChange={setDetailOpen}
         contact={detailContact}
         onContactUpdated={() => fetchAdmins()}
+        isGhlMode={true}
       />
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
