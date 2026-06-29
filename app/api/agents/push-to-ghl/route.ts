@@ -32,22 +32,28 @@ export async function POST(request: NextRequest) {
 
     for (const agent of agents) {
       try {
-        const [firstName, ...rest] = (agent.name || '').trim().split(/\s+/)
         const e164Phone = toE164(agent.phone)
+
+        // Skip if no identifier — GHL cannot match without email or phone
+        if (!agent.email && !e164Phone) {
+          results.push({ name: agent.name, success: false, action: 'skipped', error: 'No email or phone' })
+          continue
+        }
+
+        const [firstName, ...rest] = (agent.name || '').trim().split(/\s+/)
 
         const payload: Record<string, unknown> = {
           locationId,
           firstName: firstName || undefined,
           lastName: rest.join(' ') || undefined,
           email: agent.email || undefined,
-          phone: e164Phone,
+          phone: e164Phone || undefined,
           tags: ['CHT Agent'],
           source: 'CHT System',
         }
-        // Strip undefined
+        // Strip undefined fields
         Object.keys(payload).forEach((k) => payload[k] === undefined && delete payload[k])
 
-        // Upsert: GHL matches phone first, then email, then creates new
         const res = await fetch(`${GHL_API_BASE}/contacts/upsert`, {
           method: 'POST',
           headers: {
@@ -60,19 +66,22 @@ export async function POST(request: NextRequest) {
 
         if (!res.ok) {
           const errText = await res.text()
-          results.push({ name: agent.name, success: false, action: 'skipped', error: `${res.status} - ${errText}` })
+          results.push({ name: agent.name, success: false, action: 'skipped', error: `GHL ${res.status}: ${errText}` })
           continue
         }
 
         const data = await res.json()
-        const ghlId = data.contact?.id || null
-        const action = data.traceId ? 'updated' : 'created'
+        console.log(`GHL upsert response for ${agent.name}:`, JSON.stringify(data))
+
+        const ghlId = data.contact?.id ?? data.id ?? null
+        const action = data.new === false ? 'updated' : 'created'
 
         if (ghlId) {
           await prisma.agent.update({ where: { id: agent.id }, data: { ghlContactId: ghlId } })
+          results.push({ name: agent.name, success: true, action })
+        } else {
+          results.push({ name: agent.name, success: false, action: 'skipped', error: 'GHL returned no contact ID' })
         }
-
-        results.push({ name: agent.name, success: true, action })
       } catch (err: unknown) {
         results.push({ name: agent.name, success: false, action: 'skipped', error: err instanceof Error ? err.message : 'Unknown error' })
       }
