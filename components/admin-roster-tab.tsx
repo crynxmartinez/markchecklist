@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useImperativeHandle, forwardRef } from 'react'
+import { useState, useEffect, useImperativeHandle, forwardRef, useRef } from 'react'
 import { Search, X, Edit, Trash2, Upload } from 'lucide-react'
 import { ContactDetailModal } from '@/components/contact-detail-modal'
 import { Button } from '@/components/ui/button'
@@ -107,13 +107,17 @@ export const AdminRosterTab = forwardRef<AdminRosterTabHandle, AdminRosterTabPro
     fetchAdmins()
   }, [])
 
+  const onAdminsLoadedRef = useRef(onAdminsLoaded)
+  onAdminsLoadedRef.current = onAdminsLoaded
   useEffect(() => {
-    onAdminsLoaded?.(admins.length)
-  }, [admins.length, onAdminsLoaded])
+    onAdminsLoadedRef.current?.(admins.length)
+  }, [admins.length])
 
+  const onSelectionChangeRef = useRef(onSelectionChange)
+  onSelectionChangeRef.current = onSelectionChange
   useEffect(() => {
-    onSelectionChange?.(selectedAdmins.size)
-  }, [selectedAdmins, onSelectionChange])
+    onSelectionChangeRef.current?.(selectedAdmins.size)
+  }, [selectedAdmins])
 
   const filtered = admins.filter((a) => {
     if (!searchQuery.trim()) return true

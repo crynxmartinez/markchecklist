@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useImperativeHandle, forwardRef } from 'react'
+import { useState, useEffect, useImperativeHandle, forwardRef, useRef } from 'react'
 import { Search, X, ArrowUp, ArrowDown, ArrowUpDown, Edit, Trash2 } from 'lucide-react'
 import { ContactDetailModal } from '@/components/contact-detail-modal'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -136,18 +136,18 @@ export const AgentRosterTab = forwardRef<AgentRosterTabHandle, AgentRosterTabPro
   }, [])
 
   // Notify parent of agents loaded
+  const onAgentsLoadedRef = useRef(onAgentsLoaded)
+  onAgentsLoadedRef.current = onAgentsLoaded
   useEffect(() => {
-    if (onAgentsLoaded) {
-      onAgentsLoaded(agents.length)
-    }
-  }, [agents.length, onAgentsLoaded])
+    onAgentsLoadedRef.current?.(agents.length)
+  }, [agents.length])
 
   // Notify parent of selection changes
+  const onSelectionChangeRef = useRef(onSelectionChange)
+  onSelectionChangeRef.current = onSelectionChange
   useEffect(() => {
-    if (onSelectionChange) {
-      onSelectionChange(selectedAgents.size, selectedAgents)
-    }
-  }, [selectedAgents, onSelectionChange])
+    onSelectionChangeRef.current?.(selectedAgents.size, selectedAgents)
+  }, [selectedAgents])
 
   // Search filtering
   const filteredAgents = agents.filter((agent) => {
