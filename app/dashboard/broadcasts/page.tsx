@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   Megaphone,
   Search,
@@ -129,6 +129,33 @@ export default function BroadcastsPage() {
   const [filters, setFilters] = useState<Record<string, string>>({})
   const [search, setSearch] = useState('')
   const [selected, setSelected] = useState<Set<string>>(new Set())
+
+  const messageRef = useRef<HTMLTextAreaElement>(null)
+  const subjectCursor = useRef<{ start: number; end: number }>({ start: 0, end: 0 })
+
+  const insertSubjectToken = (token: string) => {
+    const { start, end } = subjectCursor.current
+    const next = subject.slice(0, start) + token + subject.slice(end)
+    setSubject(next)
+    subjectCursor.current = { start: start + token.length, end: start + token.length }
+  }
+
+  const insertToken = (token: string) => {
+    const el = messageRef.current
+    if (!el) {
+      setMessage((prev) => prev + token)
+      return
+    }
+    const start = el.selectionStart ?? message.length
+    const end = el.selectionEnd ?? message.length
+    const next = message.slice(0, start) + token + message.slice(end)
+    setMessage(next)
+    // Restore cursor after the inserted token
+    requestAnimationFrame(() => {
+      el.focus()
+      el.setSelectionRange(start + token.length, start + token.length)
+    })
+  }
 
   const [sending, setSending] = useState(false)
   const [confirmOpen, setConfirmOpen] = useState(false)
@@ -422,12 +449,29 @@ export default function BroadcastsPage() {
             {channel === 'EMAIL' && (
               <div className="grid gap-1.5">
                 <Label htmlFor="subject">Subject</Label>
-                <Input
-                  id="subject"
-                  value={subject}
-                  onChange={(e) => setSubject(e.target.value)}
-                  placeholder="Email subject"
-                />
+                <div className="flex gap-1.5">
+                  <Input
+                    id="subject"
+                    value={subject}
+                    onChange={(e) => setSubject(e.target.value)}
+                    onSelect={(e) => {
+                      const el = e.currentTarget
+                      subjectCursor.current = { start: el.selectionStart ?? 0, end: el.selectionEnd ?? 0 }
+                    }}
+                    onBlur={(e) => {
+                      subjectCursor.current = { start: e.target.selectionStart ?? subject.length, end: e.target.selectionEnd ?? subject.length }
+                    }}
+                    placeholder="Hi {{firstName}}, here's your update"
+                    className="flex-1"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => insertSubjectToken('{{firstName}}')}
+                    className="shrink-0 rounded border border-primary/30 bg-primary/10 px-2 text-xs font-mono text-primary hover:bg-primary/20 transition-colors"
+                  >
+                    + Name
+                  </button>
+                </div>
               </div>
             )}
 
@@ -440,7 +484,28 @@ export default function BroadcastsPage() {
                   </span>
                 )}
               </div>
+
+              {/* Token toolbar */}
+              <div className="flex flex-wrap items-center gap-1.5 rounded-md border bg-muted/40 px-2 py-1.5">
+                <span className="text-xs font-medium text-muted-foreground mr-1">Custom Values:</span>
+                {[
+                  { label: 'First Name', token: '{{firstName}}' },
+                  { label: 'Full Name', token: '{{name}}' },
+                ].map(({ label, token }) => (
+                  <button
+                    key={token}
+                    type="button"
+                    onClick={() => insertToken(token)}
+                    className="inline-flex items-center gap-1 rounded-full border border-primary/30 bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary hover:bg-primary/20 transition-colors"
+                  >
+                    <span className="font-mono">{token}</span>
+                    <span className="text-muted-foreground">· {label}</span>
+                  </button>
+                ))}
+              </div>
+
               <Textarea
+                ref={messageRef}
                 id="message"
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
@@ -448,8 +513,7 @@ export default function BroadcastsPage() {
                 placeholder={'Hi {{firstName}}, ...'}
               />
               <p className="text-xs text-muted-foreground">
-                Tokens: <code>{'{{firstName}}'}</code> <code>{'{{name}}'}</code>{' '}
-                are replaced per recipient.
+                Click a token above to insert it at your cursor position.
               </p>
             </div>
 
