@@ -1,17 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-
-// GHL API base URL
-const GHL_API_BASE = 'https://services.leadconnectorhq.com'
-
-async function getAccessToken() {
-  // Get the access token from environment or refresh it
-  const accessToken = process.env.GHL_ACCESS_TOKEN
-  if (!accessToken) {
-    throw new Error('GHL_ACCESS_TOKEN not configured')
-  }
-  return accessToken
-}
+import { ensureGHLContact } from '@/lib/ghl'
 
 interface PushResult {
   contactId: string
@@ -34,12 +23,12 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const accessToken = await getAccessToken()
+    const apiKey = process.env.GHL_API_KEY
     const locationId = process.env.GHL_LOCATION_ID
 
-    if (!locationId) {
+    if (!apiKey || !locationId) {
       return NextResponse.json(
-        { error: 'GHL_LOCATION_ID not configured' },
+        { error: 'GHL credentials not configured' },
         { status: 500 }
       )
     }
@@ -62,98 +51,33 @@ export async function POST(request: NextRequest) {
 
     for (const contact of contacts) {
       const name = `${contact.firstName || ''} ${contact.lastName || ''}`.trim()
-      
+
+      if (!contact.email && !contact.phone) {
+        results.push({ contactId: contact.id, name, email: contact.email || 'N/A', success: false, action: 'skipped', error: 'No email or phone' })
+        continue
+      }
+
       try {
-        // Build the contact payload for GHL
-        const payload: any = {
-          locationId,
+        const { ghlId, action } = await ensureGHLContact({
+          ghlContactId: contact.ghlContactId,
           firstName: contact.firstName || undefined,
           lastName: contact.lastName || undefined,
-          email: contact.email || undefined,
-          phone: contact.phone || undefined,
-          tags: contact.tags || [],
+          email: contact.email,
+          phone: contact.phone,
+          tags: (contact.tags as string[]) || [],
           source: contact.source || undefined,
-        }
-
-        // Remove undefined fields
-        Object.keys(payload).forEach(key => {
-          if (payload[key] === undefined) {
-            delete payload[key]
-          }
+          locationId,
+          apiKey,
         })
 
-        let response: Response
-        let action: 'created' | 'updated' | 'skipped' = 'skipped'
-        let ghlContactId = contact.ghlContactId
-
-        if (contact.ghlContactId) {
-          // Update existing contact in GHL
-          response = await fetch(`${GHL_API_BASE}/contacts/${contact.ghlContactId}`, {
-            method: 'PUT',
-            headers: {
-              'Authorization': `Bearer ${accessToken}`,
-              'Content-Type': 'application/json',
-              'Version': '2021-07-28',
-            },
-            body: JSON.stringify(payload),
-          })
-          action = 'updated'
-        } else {
-          // Try to upsert (create or update by email/phone)
-          response = await fetch(`${GHL_API_BASE}/contacts/upsert`, {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${accessToken}`,
-              'Content-Type': 'application/json',
-              'Version': '2021-07-28',
-            },
-            body: JSON.stringify(payload),
-          })
-          action = 'created'
+        // Save ghlContactId if it was newly resolved
+        if (ghlId !== contact.ghlContactId) {
+          await prisma.contact.update({ where: { id: contact.id }, data: { ghlContactId: ghlId } })
         }
 
-        if (!response.ok) {
-          const errorText = await response.text()
-          results.push({
-            contactId: contact.id,
-            name,
-            email: contact.email || 'N/A',
-            success: false,
-            action: 'skipped',
-            error: `GHL API error: ${response.status} - ${errorText}`,
-          })
-          continue
-        }
-
-        const data = await response.json()
-        
-        // If we created a new contact, save the GHL contact ID
-        if (!contact.ghlContactId && data.contact?.id) {
-          await prisma.contact.update({
-            where: { id: contact.id },
-            data: { ghlContactId: data.contact.id }
-          })
-          ghlContactId = data.contact.id
-        }
-
-        results.push({
-          contactId: contact.id,
-          name,
-          email: contact.email || 'N/A',
-          success: true,
-          action,
-          ghlContactId: ghlContactId || undefined,
-        })
-
-      } catch (error: any) {
-        results.push({
-          contactId: contact.id,
-          name,
-          email: contact.email || 'N/A',
-          success: false,
-          action: 'skipped',
-          error: error.message,
-        })
+        results.push({ contactId: contact.id, name, email: contact.email || 'N/A', success: true, action, ghlContactId: ghlId })
+      } catch (error: unknown) {
+        results.push({ contactId: contact.id, name, email: contact.email || 'N/A', success: false, action: 'skipped', error: error instanceof Error ? error.message : 'Unknown error' })
       }
     }
 

@@ -26,6 +26,133 @@ interface GHLContactsResponse {
   }
 }
 
+// ─── Phone normalisation ────────────────────────────────────────────────────
+// Converts a phone number to E.164.  Falls back to the raw trimmed value
+// rather than returning undefined so the field is never silently dropped.
+export function toE164(phone?: string | null): string | undefined {
+  if (!phone) return undefined
+  const trimmed = phone.trim()
+  if (trimmed.startsWith('+')) return trimmed.replace(/\s/g, '')
+  const digits = trimmed.replace(/\D/g, '')
+  if (digits.length === 10) return `+1${digits}`
+  if (digits.length === 11 && digits.startsWith('1')) return `+${digits}`
+  // Unknown format — pass raw so GHL still receives the number
+  return trimmed
+}
+
+// ─── Shared payload builder ──────────────────────────────────────────────────
+// Strips keys whose value is undefined so JSON.stringify never silently omits them.
+function buildPayload(fields: Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = {}
+  for (const [k, v] of Object.entries(fields)) {
+    if (v !== undefined) out[k] = v
+  }
+  return out
+}
+
+// ─── Retry helper ────────────────────────────────────────────────────────────
+async function fetchWithRetry(url: string, options: RequestInit, retries = 1): Promise<Response> {
+  const res = await fetch(url, options)
+  if (res.status === 429 && retries > 0) {
+    await new Promise((r) => setTimeout(r, 1000))
+    return fetchWithRetry(url, options, retries - 1)
+  }
+  return res
+}
+
+// ─── ensureGHLContact ────────────────────────────────────────────────────────
+// The single source of truth for writing a contact to GHL.
+// Strategy:
+//   1. If we already have a ghlContactId → PUT directly (guaranteed field write)
+//   2. Otherwise → POST /contacts/upsert to find-or-create, then PUT to guarantee fields
+// Returns { ghlId, action }
+export interface EnsureContactParams {
+  ghlContactId?: string | null
+  firstName?: string
+  lastName?: string
+  email?: string | null
+  phone?: string | null
+  tags?: string[]
+  source?: string
+  locationId: string
+  apiKey: string
+}
+
+export async function ensureGHLContact(
+  params: EnsureContactParams
+): Promise<{ ghlId: string; action: 'created' | 'updated' }> {
+  const { apiKey, locationId } = params
+  const phone = toE164(params.phone)
+
+  const headers = {
+    Authorization: `Bearer ${apiKey}`,
+    'Content-Type': 'application/json',
+    Version: GHL_API_VERSION,
+  }
+
+  let ghlId = params.ghlContactId || null
+  let action: 'created' | 'updated' = 'updated'
+
+  // Step 1 — if no known ID, upsert to find or create
+  if (!ghlId) {
+    const upsertPayload = buildPayload({
+      locationId,
+      firstName: params.firstName,
+      lastName: params.lastName,
+      email: params.email,
+      phone,
+      tags: params.tags ?? [],
+      source: params.source,
+    })
+
+    const upsertRes = await fetchWithRetry(`${GHL_API_BASE}/contacts/upsert`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(upsertPayload),
+    })
+
+    if (!upsertRes.ok) {
+      const errText = await upsertRes.text()
+      console.error('[ensureGHLContact] upsert failed:', errText)
+      throw new Error(`GHL upsert ${upsertRes.status}: ${errText}`)
+    }
+
+    const upsertData = await upsertRes.json()
+    ghlId = upsertData.contact?.id ?? upsertData.id ?? null
+    action = upsertData.new === false ? 'updated' : 'created'
+
+    if (!ghlId) {
+      console.error('[ensureGHLContact] upsert returned no contact ID:', upsertData)
+      throw new Error('GHL upsert returned no contact ID')
+    }
+  }
+
+  // Step 2 — PUT directly on the known contact to guarantee all fields are written
+  const putPayload = buildPayload({
+    firstName: params.firstName,
+    lastName: params.lastName,
+    email: params.email,
+    phone,
+    tags: params.tags,
+    source: params.source,
+    locationId,
+  })
+
+  const putRes = await fetchWithRetry(`${GHL_API_BASE}/contacts/${ghlId}`, {
+    method: 'PUT',
+    headers,
+    body: JSON.stringify(putPayload),
+  })
+
+  if (!putRes.ok) {
+    const errText = await putRes.text()
+    console.error(`[ensureGHLContact] PUT /contacts/${ghlId} failed:`, errText)
+    // Non-fatal — we still have the ghlId, log and continue
+  }
+
+  return { ghlId, action }
+}
+
 export async function fetchGHLContacts(locationId: string, apiKey: string) {
   const contacts: GHLContact[] = []
   let startAfterId: string | undefined = undefined
@@ -313,6 +440,15 @@ export async function upsertGHLContact(params: CreateContactParams) {
 export async function updateGHLContact(params: UpdateContactParams) {
   try {
     console.log('Updating GHL contact:', params.contactId)
+
+    const payload = buildPayload({
+      firstName: params.firstName,
+      lastName: params.lastName,
+      email: params.email,
+      phone: params.phone,
+      tags: params.tags,
+      source: params.source,
+    })
     
     const response = await fetch(`${GHL_API_BASE}/contacts/${params.contactId}`, {
       method: 'PUT',
@@ -321,14 +457,7 @@ export async function updateGHLContact(params: UpdateContactParams) {
         'Version': GHL_API_VERSION,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        firstName: params.firstName,
-        lastName: params.lastName,
-        email: params.email,
-        phone: params.phone,
-        tags: params.tags,
-        source: params.source,
-      }),
+      body: JSON.stringify(payload),
     })
 
     if (!response.ok) {

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { sendSMS, sendEmail, upsertGHLContact } from '@/lib/ghl'
+import { sendSMS, sendEmail, ensureGHLContact } from '@/lib/ghl'
 import { personalize } from '@/lib/broadcast'
 
 interface IncomingRecipient {
@@ -16,23 +16,6 @@ interface ResultRow {
   name?: string
   status: 'SENT' | 'FAILED' | 'SKIPPED'
   error?: string
-}
-
-// Normalises a phone number for GHL.
-// - Already E.164 (+XXXXXXXXX) → pass through as-is
-// - 10 US digits → +1XXXXXXXXXX
-// - 11 digits starting with 1 → +1XXXXXXXXXX
-// - Anything else → pass raw value so GHL still receives the number
-function toE164(phone?: string | null): string | undefined {
-  if (!phone) return undefined
-  const trimmed = phone.trim()
-  // Already has a + — treat as international E.164, keep as-is
-  if (trimmed.startsWith('+')) return trimmed.replace(/\s/g, '')
-  const digits = trimmed.replace(/\D/g, '')
-  if (digits.length === 10) return `+1${digits}`
-  if (digits.length === 11 && digits.startsWith('1')) return `+${digits}`
-  // Unknown format — pass the raw value so GHL at least has the number
-  return trimmed
 }
 
 // Converts a raw GHL error message into a short, user-friendly reason.
@@ -95,42 +78,39 @@ export async function POST(request: Request) {
 
     for (const r of recipients) {
       let contactId = r.contactId || null
-      const e164Phone = toE164(r.phone)
 
-      // Always upsert the GHL contact when we have identifying info.
-      // This ensures GHL has the latest phone+email on the GHL contact.
-      // We upsert when we have at least an email or phone to identify the contact.
-      const shouldUpsert = (r.email || e164Phone) && (createMissing || contactId)
-      if (shouldUpsert) {
+      // Use ensureGHLContact when we have at least one identifier.
+      // It upserts (find-or-create) then PUTs to guarantee phone+email are written.
+      const hasIdentifier = r.email || r.phone
+      const shouldEnsure = hasIdentifier && (createMissing || contactId)
+      if (shouldEnsure) {
         try {
           const [firstName, ...rest] = (r.name || '').trim().split(/\s+/)
-          const contact = await upsertGHLContact({
+          const { ghlId } = await ensureGHLContact({
+            ghlContactId: contactId,
             firstName: firstName || undefined,
             lastName: rest.join(' ') || undefined,
-            email: r.email || undefined,
-            phone: e164Phone,
+            email: r.email,
+            phone: r.phone,
             source: 'CHT Broadcast',
             locationId,
             apiKey,
           })
-          const resolvedId = contact?.id || null
-          if (resolvedId) {
-            contactId = resolvedId
-            // Cache the resolved id on the source record for next time.
-            if (r.agentId) {
-              if (audience === 'ADMIN') {
-                await prisma.admin
-                  .update({ where: { id: r.agentId }, data: { ghlContactId: resolvedId } })
-                  .catch(() => undefined)
-              } else {
-                await prisma.agent
-                  .update({ where: { id: r.agentId }, data: { ghlContactId: resolvedId } })
-                  .catch(() => undefined)
-              }
+          contactId = ghlId
+          // Cache the resolved id on the source record for next time.
+          if (r.agentId) {
+            if (audience === 'ADMIN') {
+              await prisma.admin
+                .update({ where: { id: r.agentId }, data: { ghlContactId: ghlId } })
+                .catch(() => undefined)
+            } else {
+              await prisma.agent
+                .update({ where: { id: r.agentId }, data: { ghlContactId: ghlId } })
+                .catch(() => undefined)
             }
           }
         } catch (err) {
-          console.error('upsert failed for', r.name, err)
+          console.error('[send-batch] ensureGHLContact failed for', r.name, err)
         }
       }
 

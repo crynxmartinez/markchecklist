@@ -1,62 +1,7 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { fetchGHLContacts } from '@/lib/ghl'
+import { fetchGHLContacts, ensureGHLContact } from '@/lib/ghl'
 import { Prisma } from '@prisma/client'
-
-const GHL_API_BASE = 'https://services.leadconnectorhq.com'
-
-function toE164(phone?: string | null): string | undefined {
-  if (!phone) return undefined
-  const trimmed = phone.trim()
-  if (trimmed.startsWith('+')) return trimmed.replace(/\s/g, '')
-  const digits = trimmed.replace(/\D/g, '')
-  if (digits.length === 10) return `+1${digits}`
-  if (digits.length === 11 && digits.startsWith('1')) return `+${digits}`
-  return undefined
-}
-
-async function upsertToGHL(
-  apiKey: string,
-  locationId: string,
-  record: { id: string; name: string; email?: string | null; phone?: string | null },
-  tag: string
-): Promise<{ success: boolean; ghlId: string | null; error?: string }> {
-  const e164Phone = toE164(record.phone)
-  if (!record.email && !e164Phone) {
-    return { success: false, ghlId: null, error: 'No email or phone' }
-  }
-  const [firstName, ...rest] = (record.name || '').trim().split(/\s+/)
-  const payload: Record<string, unknown> = {
-    locationId,
-    firstName: firstName || undefined,
-    lastName: rest.join(' ') || undefined,
-    email: record.email || undefined,
-    phone: e164Phone || undefined,
-    tags: [tag],
-    source: 'CHT System',
-  }
-  Object.keys(payload).forEach((k) => payload[k] === undefined && delete payload[k])
-
-  const res = await fetch(`${GHL_API_BASE}/contacts/upsert`, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-      Version: '2021-07-28',
-    },
-    body: JSON.stringify(payload),
-  })
-
-  if (!res.ok) {
-    const errText = await res.text()
-    return { success: false, ghlId: null, error: `GHL ${res.status}: ${errText}` }
-  }
-
-  const data = await res.json()
-  const ghlId = data.contact?.id ?? data.id ?? null
-  if (!ghlId) return { success: false, ghlId: null, error: 'GHL returned no contact ID' }
-  return { success: true, ghlId }
-}
 
 export async function GET(request: Request) {
   // Verify this is called by Vercel Cron (or an authorized internal call)
@@ -126,17 +71,29 @@ export async function GET(request: Request) {
   try {
     log.push('Step 2: Pushing agents to GHL...')
     const agents = await prisma.agent.findMany({
-      select: { id: true, name: true, email: true, phone: true },
+      select: { id: true, name: true, email: true, phone: true, ghlContactId: true },
     })
     let agentSuccess = 0, agentFailed = 0
     for (const agent of agents) {
-      const result = await upsertToGHL(apiKey, locationId, agent, 'CHT Agent')
-      if (result.success && result.ghlId) {
-        await prisma.agent.update({ where: { id: agent.id }, data: { ghlContactId: result.ghlId } })
+      if (!agent.email && !agent.phone) { agentFailed++; log.push(`  ✗ Agent ${agent.name}: No email or phone`); continue }
+      try {
+        const [firstName, ...rest] = (agent.name || '').trim().split(/\s+/)
+        const { ghlId } = await ensureGHLContact({
+          ghlContactId: agent.ghlContactId,
+          firstName: firstName || undefined,
+          lastName: rest.join(' ') || undefined,
+          email: agent.email,
+          phone: agent.phone,
+          tags: ['CHT Agent'],
+          source: 'CHT System',
+          locationId,
+          apiKey,
+        })
+        await prisma.agent.update({ where: { id: agent.id }, data: { ghlContactId: ghlId } })
         agentSuccess++
-      } else {
+      } catch (err) {
         agentFailed++
-        log.push(`  ✗ Agent ${agent.name}: ${result.error}`)
+        log.push(`  ✗ Agent ${agent.name}: ${err instanceof Error ? err.message : String(err)}`)
       }
     }
     log.push(`  → ${agents.length} total | ${agentSuccess} pushed | ${agentFailed} failed`)
@@ -148,17 +105,29 @@ export async function GET(request: Request) {
   try {
     log.push('Step 3: Pushing admins to GHL...')
     const admins = await prisma.admin.findMany({
-      select: { id: true, name: true, email: true, phone: true },
+      select: { id: true, name: true, email: true, phone: true, ghlContactId: true },
     })
     let adminSuccess = 0, adminFailed = 0
     for (const admin of admins) {
-      const result = await upsertToGHL(apiKey, locationId, admin, 'CHT Admin')
-      if (result.success && result.ghlId) {
-        await prisma.admin.update({ where: { id: admin.id }, data: { ghlContactId: result.ghlId } })
+      if (!admin.email && !admin.phone) { adminFailed++; log.push(`  ✗ Admin ${admin.name}: No email or phone`); continue }
+      try {
+        const [firstName, ...rest] = (admin.name || '').trim().split(/\s+/)
+        const { ghlId } = await ensureGHLContact({
+          ghlContactId: admin.ghlContactId,
+          firstName: firstName || undefined,
+          lastName: rest.join(' ') || undefined,
+          email: admin.email,
+          phone: admin.phone,
+          tags: ['CHT Admin'],
+          source: 'CHT System',
+          locationId,
+          apiKey,
+        })
+        await prisma.admin.update({ where: { id: admin.id }, data: { ghlContactId: ghlId } })
         adminSuccess++
-      } else {
+      } catch (err) {
         adminFailed++
-        log.push(`  ✗ Admin ${admin.name}: ${result.error}`)
+        log.push(`  ✗ Admin ${admin.name}: ${err instanceof Error ? err.message : String(err)}`)
       }
     }
     log.push(`  → ${admins.length} total | ${adminSuccess} pushed | ${adminFailed} failed`)
