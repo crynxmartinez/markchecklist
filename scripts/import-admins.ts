@@ -29,7 +29,7 @@ const ROWS: Row[] = [
   ['Owner', 'Blake Cory', 'blake@coryhometeam.com', '(949) 668-4733', 'N/A', '01781649', 'February 26', '1/1/2016', '', 'TCORYBLA', ''],
   ['VP', 'Kiona Grantham', 'kiona@coryhometeam.com', '(951) 497-0679', '', '02075788', 'July 4', '7/10/2017', '', 'SWGRANKIO', '11/18/2026'],
   ['Finance Manager', 'Dana Martinez', 'dana@coryhometeam.com', '(951) 500-4269', 'N/A', 'N/A', 'December 9', '3/29/2016', '', 'SWMARTDAN', ''],
-  ['Sales Manager', 'Melissa Mantz', 'melissa@coryhometeam.com', '(951) 250-7165', '', '2079338', '10/9/2020', '3/5/2019', '', 'SWMANTMEL', '2/27/2027'],
+  ['Sales Manager', 'Melissa Mantz', 'melissa@coryhometeam.com', '9512507165', '', '2079338', '10/9/2020', '3/5/2019', '', 'SWMANTMEL', '2/27/2027'],
   ['TC', 'Kenia Bautista', 'kenia@coryhometeam.com', '(951) 215-6148', 'N/A', '01778072', 'May 31', '7/20/2020', 'Spanish', 'SWBAUTKEN', ''],
   ['TC', 'Alexis Cassidy', 'alexis@coryhometeam.com', '(760) 916-6933', 'N/A', '02209260', 'April 4', '8/9/2021', '', 'SWCASSALE', ''],
   ['Customer Experience', 'Diana Alsup', 'diana@coryhometeam.com', '(951) 215-6033', 'N/A', 'N/A', 'March 14', '4/18/2022', '', 'N/A', ''],
@@ -42,11 +42,12 @@ const ROWS: Row[] = [
   ['VA-Transaction', 'Jam Bernardo', 'jamesa@coryhometeam.com', '', '(951) 251-5859', 'N/A', 'September 20', '5/24/2024', '', '', ''],
   ['VA-Admin Asst (Database/Zillow/ISA reports)', 'Allain Christian Baltazar', 'abaltazar@coryhometeam.com', '(+63) 977-008-0791', 'N/A', 'N/A', 'July 3', '4/5/2022', '', 'NA', ''],
   ['VA - CHT Store Specialist and Automations Expert', 'Raphael Paul Martinez', 'raphael@coryhometeam.com', '', 'N/A', 'N/A', '', '10/15/2025', '', 'NA', ''],
-  ['Inside Sales Manager', 'Nichole Raimer', 'nichole@coryhometeam.com', '', '(951) 363-3679', 'N/A', 'October 10', '12/13/2018', 'Spanish', 'NA', ''],
+  ['Inside Sales Manager', 'Nichole Raimer', 'nichole@coryhometeam.com', '39(344) 644-9065', '(951) 363-3679', 'N/A', 'October 10', '12/13/2018', 'Spanish', 'NA', ''],
   ['ISA', 'Kimberly Romero', 'kimberly@coryhometeam.com', '(+506) 8467 1005', '(619) 436-1915 Ext 108 (shared ISA #)', '', '', '6/26/2024', '', '', ''],
   ['ISA', 'Jasmine Flores', 'jasmine@coryhometeam.com', '909-380-5087', 'RC: (951) 344-6422 Ext. 114', '', 'April 27', '10/9/2024', '', '', ''],
   ['ISA', 'Kelly Montoya', 'kellym@coryhometeam.com', '702-265-4321', '(619) 436-1915 Ext 108 (shared ISA #)', '', 'March 26', '1/29/2026', '', '', ''],
   ['ISA', 'Jamilla Villegas', 'jamilla@soldbycht.com', '310-782-5834', '(619) 436-1915 Ext 108 (shared ISA #)', '', '', '6/18/2026', '', '', ''],
+  ['ISA', 'Kelly Luizzi', 'kelly@coryhometeam.com', '(858) 335-5629', 'RC: (858) 355-9855 Ext. 113', '', '', '', '', '', ''],
 ]
 
 // Empty strings and placeholders like "N/A" / "NA" become null.
