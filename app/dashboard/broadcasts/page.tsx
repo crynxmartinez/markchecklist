@@ -479,12 +479,21 @@ export default function BroadcastsPage() {
                 </div>
               )}
               {needCreate.length > 0 && (
-                <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">No GHL contact yet</span>
-                  <span className="font-medium">
-                    {needCreate.length}{' '}
-                    {createMissing ? '(will create)' : '(will skip)'}
-                  </span>
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">No GHL contact yet</span>
+                    <span className="font-medium">
+                      {needCreate.length}{' '}
+                      {createMissing ? '(will create)' : '(will skip)'}
+                    </span>
+                  </div>
+                  <div className="pl-2 border-l-2 border-muted space-y-0.5">
+                    {needCreate.map((r) => (
+                      <p key={r.id} className="text-xs text-muted-foreground truncate">
+                        {r.name || '—'}{!r.email && !r.phone ? ' · no email or phone' : ''}
+                      </p>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>
