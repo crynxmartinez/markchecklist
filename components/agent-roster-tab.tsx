@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useImperativeHandle, forwardRef } from 'react'
-import { Search, X, ArrowUp, ArrowDown, ArrowUpDown, Edit } from 'lucide-react'
+import { Search, X, ArrowUp, ArrowDown, ArrowUpDown, Edit, Trash2 } from 'lucide-react'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -58,6 +58,7 @@ interface Agent {
 export interface AgentRosterTabHandle {
   openEdit: () => void
   pushToGHL: () => Promise<void>
+  deleteSelected: () => Promise<void>
   getSelectedCount: () => number
 }
 
@@ -235,13 +236,30 @@ export const AgentRosterTab = forwardRef<AgentRosterTabHandle, AgentRosterTabPro
         body: JSON.stringify({ agentIds: Array.from(selectedAgents) }),
       })
       const data = await res.json()
-      const msg = `Pushed ${data.summary?.success ?? 0} agent(s) to GHL`
+      const msg = `Pushed ${data.summary?.success ?? 0} of ${data.summary?.total ?? 0} agent(s) to GHL`
       setMessage(msg)
       onMessage?.(msg)
     } catch {
       setMessage('Failed to push to GHL')
     } finally {
       setPushing(false)
+    }
+  }
+
+  const handleDeleteSelected = async () => {
+    if (selectedAgents.size === 0) return
+    if (!confirm(`Delete ${selectedAgents.size} agent(s)? This cannot be undone.`)) return
+    try {
+      for (const id of Array.from(selectedAgents)) {
+        await fetch(`/api/agents/${id}`, { method: 'DELETE' })
+      }
+      setAgents((prev) => prev.filter((a) => !selectedAgents.has(a.id)))
+      setSelectedAgents(new Set())
+      const msg = `Deleted ${selectedAgents.size} agent(s)`
+      setMessage(msg)
+      onMessage?.(msg)
+    } catch {
+      setMessage('Failed to delete agent(s)')
     }
   }
 
@@ -255,6 +273,7 @@ export const AgentRosterTab = forwardRef<AgentRosterTabHandle, AgentRosterTabPro
   useImperativeHandle(ref, () => ({
     openEdit: openEditFromSelection,
     pushToGHL: handlePushSelectedToGHL,
+    deleteSelected: handleDeleteSelected,
     getSelectedCount: () => selectedAgents.size,
   }))
 

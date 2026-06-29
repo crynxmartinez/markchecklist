@@ -448,7 +448,14 @@ export default function ContactsPage() {
               Edit
             </Button>
             <Button
-              variant="secondary"
+              variant="outline"
+              onClick={() => agentTabRef.current?.deleteSelected()}
+              disabled={selectedAgentCount === 0}
+            >
+              <Trash2 className="mr-2 h-4 w-4" />
+              Delete ({selectedAgentCount})
+            </Button>
+            <Button
               onClick={() => agentTabRef.current?.pushToGHL()}
               disabled={selectedAgentCount === 0}
             >
@@ -473,6 +480,21 @@ export default function ContactsPage() {
             >
               <Edit className="mr-2 h-4 w-4" />
               Edit
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => adminTabRef.current?.deleteSelected()}
+              disabled={selectedAdminCount === 0}
+            >
+              <Trash2 className="mr-2 h-4 w-4" />
+              Delete ({selectedAdminCount})
+            </Button>
+            <Button
+              onClick={() => adminTabRef.current?.pushToGHL()}
+              disabled={selectedAdminCount === 0}
+            >
+              <Upload className="mr-2 h-4 w-4" />
+              Push to GHL{selectedAdminCount > 0 ? ` (${selectedAdminCount})` : ''}
             </Button>
           </div>
         )}

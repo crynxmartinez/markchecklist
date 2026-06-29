@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useImperativeHandle, forwardRef } from 'react'
-import { Search, X, Edit } from 'lucide-react'
+import { Search, X, Edit, Trash2, Upload } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
@@ -58,6 +58,8 @@ const EMPTY_FORM = {
 export interface AdminRosterTabHandle {
   openEdit: () => void
   openCreate: () => void
+  deleteSelected: () => Promise<void>
+  pushToGHL: () => Promise<void>
   getSelectedCount: () => number
 }
 
@@ -73,6 +75,7 @@ export const AdminRosterTab = forwardRef<AdminRosterTabHandle, AdminRosterTabPro
   const [searchQuery, setSearchQuery] = useState('')
   const [message, setMessage] = useState('')
   const [selectedAdmins, setSelectedAdmins] = useState<Set<string>>(new Set())
+  const [pushing, setPushing] = useState(false)
 
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -124,9 +127,49 @@ export const AdminRosterTab = forwardRef<AdminRosterTabHandle, AdminRosterTabPro
     if (admin) openEdit(admin)
   }
 
+  const handleDeleteSelected = async () => {
+    if (selectedAdmins.size === 0) return
+    if (!confirm(`Delete ${selectedAdmins.size} admin(s)? This cannot be undone.`)) return
+    try {
+      for (const id of Array.from(selectedAdmins)) {
+        await fetch(`/api/admins/${id}`, { method: 'DELETE' })
+      }
+      setAdmins((prev) => prev.filter((a) => !selectedAdmins.has(a.id)))
+      setSelectedAdmins(new Set())
+      const msg = `Deleted ${selectedAdmins.size} admin(s)`
+      setMessage(msg)
+      onMessage?.(msg)
+    } catch {
+      setMessage('Failed to delete admin(s)')
+    }
+  }
+
+  const handlePushToGHL = async () => {
+    if (selectedAdmins.size === 0) return
+    setPushing(true)
+    setMessage('')
+    try {
+      const res = await fetch('/api/admins/push-to-ghl', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ adminIds: Array.from(selectedAdmins) }),
+      })
+      const data = await res.json()
+      const msg = `Pushed ${data.summary?.success ?? 0} of ${data.summary?.total ?? 0} admin(s) to GHL`
+      setMessage(msg)
+      onMessage?.(msg)
+    } catch {
+      setMessage('Failed to push to GHL')
+    } finally {
+      setPushing(false)
+    }
+  }
+
   useImperativeHandle(ref, () => ({
     openEdit: openEditFromSelection,
     openCreate,
+    deleteSelected: handleDeleteSelected,
+    pushToGHL: handlePushToGHL,
     getSelectedCount: () => selectedAdmins.size,
   }))
 

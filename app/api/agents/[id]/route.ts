@@ -70,3 +70,17 @@ export async function PUT(
     return NextResponse.json({ error: 'Failed to update agent' }, { status: 500 })
   }
 }
+
+// DELETE agent
+export async function DELETE(
+  request: Request,
+  { params }: { params: { id: string } }
+) {
+  try {
+    await prisma.agent.delete({ where: { id: params.id } })
+    return NextResponse.json({ success: true })
+  } catch (error) {
+    console.error('Failed to delete agent:', error)
+    return NextResponse.json({ error: 'Failed to delete agent' }, { status: 500 })
+  }
+}
