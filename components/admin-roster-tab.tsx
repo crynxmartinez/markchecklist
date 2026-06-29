@@ -5,6 +5,7 @@ import { Search, X, Edit, Trash2, Upload } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
+import { Checkbox } from '@/components/ui/checkbox'
 import {
   Table,
   TableBody,
@@ -285,6 +286,14 @@ export const AdminRosterTab = forwardRef<AdminRosterTabHandle, AdminRosterTabPro
           <Table>
             <TableHeader className="sticky top-0 bg-background z-10">
               <TableRow>
+                <TableHead className="w-12">
+                  <Checkbox
+                    checked={filtered.length > 0 && filtered.every((a) => selectedAdmins.has(a.id))}
+                    onCheckedChange={(checked) => {
+                      setSelectedAdmins(checked ? new Set(filtered.map((a) => a.id)) : new Set())
+                    }}
+                  />
+                </TableHead>
                 <TableHead>Name</TableHead>
                 <TableHead>Title</TableHead>
                 <TableHead>Email</TableHead>
@@ -308,6 +317,19 @@ export const AdminRosterTab = forwardRef<AdminRosterTabHandle, AdminRosterTabPro
                     })
                   }}
                 >
+                  <TableCell onClick={(e) => e.stopPropagation()}>
+                    <Checkbox
+                      checked={selectedAdmins.has(admin.id)}
+                      onCheckedChange={() => {
+                        setSelectedAdmins((prev) => {
+                          const next = new Set(prev)
+                          if (next.has(admin.id)) next.delete(admin.id)
+                          else next.add(admin.id)
+                          return next
+                        })
+                      }}
+                    />
+                  </TableCell>
                   <TableCell className="font-medium">{admin.name}</TableCell>
                   <TableCell>
                     {admin.title ? (
