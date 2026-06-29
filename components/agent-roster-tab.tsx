@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useImperativeHandle, forwardRef } from 'react'
 import { Search, X, ArrowUp, ArrowDown, ArrowUpDown, Edit, Trash2 } from 'lucide-react'
+import { ContactDetailModal } from '@/components/contact-detail-modal'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -76,10 +77,17 @@ export const AgentRosterTab = forwardRef<AgentRosterTabHandle, AgentRosterTabPro
   const [itemsPerPage] = useState(50)
   const [pushing, setPushing] = useState(false)
   const [message, setMessage] = useState('')
-  
+
   // Selection state
   const [selectedAgents, setSelectedAgents] = useState<Set<string>>(new Set())
-  
+
+  // Detail modal
+  const [detailOpen, setDetailOpen] = useState(false)
+  const [detailContact, setDetailContact] = useState<{
+    id: string; ghlContactId: string; firstName?: string; lastName?: string
+    email?: string; phone?: string; tags: string[]; subAccount?: string
+  } | null>(null)
+
   // Edit state
   const [editDialogOpen, setEditDialogOpen] = useState(false)
   const [editingAgent, setEditingAgent] = useState<Agent | null>(null)
@@ -200,6 +208,22 @@ export const AgentRosterTab = forwardRef<AgentRosterTabHandle, AgentRosterTabPro
   const startIndex = (currentPage - 1) * itemsPerPage
   const endIndex = startIndex + itemsPerPage
   const currentAgents = sortedAgents.slice(startIndex, endIndex)
+
+  const openDetailModal = (agent: Agent) => {
+    if (!agent.ghlContactId) return
+    const [firstName, ...rest] = agent.name.trim().split(/\s+/)
+    setDetailContact({
+      id: agent.id,
+      ghlContactId: agent.ghlContactId,
+      firstName,
+      lastName: rest.join(' ') || undefined,
+      email: agent.email || undefined,
+      phone: agent.phone || undefined,
+      tags: [],
+      subAccount: agent.coach ? `Coach: ${agent.coach}` : undefined,
+    })
+    setDetailOpen(true)
+  }
 
   const openEditDialog = (agent: Agent) => {
     setEditingAgent(agent)
@@ -440,9 +464,10 @@ export const AgentRosterTab = forwardRef<AgentRosterTabHandle, AgentRosterTabPro
             </TableHeader>
             <TableBody>
               {currentAgents.map((agent) => (
-                <TableRow 
-                  key={agent.id} 
-                  className={`hover:bg-muted/50 ${selectedAgents.has(agent.id) ? 'bg-muted/30' : ''}`}
+                <TableRow
+                  key={agent.id}
+                  className={`hover:bg-muted/50 cursor-pointer ${selectedAgents.has(agent.id) ? 'bg-muted/30' : ''}`}
+                  onClick={() => openDetailModal(agent)}
                 >
                   <TableCell onClick={(e) => e.stopPropagation()}>
                     <Checkbox
@@ -513,6 +538,14 @@ export const AgentRosterTab = forwardRef<AgentRosterTabHandle, AgentRosterTabPro
           </div>
         </div>
       )}
+
+      {/* Contact Detail Modal */}
+      <ContactDetailModal
+        open={detailOpen}
+        onOpenChange={setDetailOpen}
+        contact={detailContact}
+        onContactUpdated={() => fetchAgents()}
+      />
 
       {/* Edit Dialog */}
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>

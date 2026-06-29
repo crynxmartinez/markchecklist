@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useImperativeHandle, forwardRef } from 'react'
 import { Search, X, Edit, Trash2, Upload } from 'lucide-react'
+import { ContactDetailModal } from '@/components/contact-detail-modal'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
@@ -78,6 +79,13 @@ export const AdminRosterTab = forwardRef<AdminRosterTabHandle, AdminRosterTabPro
   const [selectedAdmins, setSelectedAdmins] = useState<Set<string>>(new Set())
   const [pushing, setPushing] = useState(false)
 
+  // Detail modal
+  const [detailOpen, setDetailOpen] = useState(false)
+  const [detailContact, setDetailContact] = useState<{
+    id: string; ghlContactId: string; firstName?: string; lastName?: string
+    email?: string; phone?: string; tags: string[]; subAccount?: string
+  } | null>(null)
+
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
@@ -119,6 +127,22 @@ export const AdminRosterTab = forwardRef<AdminRosterTabHandle, AdminRosterTabPro
     setEditingId(null)
     setFormData(EMPTY_FORM)
     setDialogOpen(true)
+  }
+
+  const openDetailModal = (admin: Admin) => {
+    if (!admin.ghlContactId) return
+    const [firstName, ...rest] = admin.name.trim().split(/\s+/)
+    setDetailContact({
+      id: admin.id,
+      ghlContactId: admin.ghlContactId,
+      firstName,
+      lastName: rest.join(' ') || undefined,
+      email: admin.email || undefined,
+      phone: admin.phone || undefined,
+      tags: [],
+      subAccount: admin.title || undefined,
+    })
+    setDetailOpen(true)
   }
 
   const openEditFromSelection = () => {
@@ -308,14 +332,7 @@ export const AdminRosterTab = forwardRef<AdminRosterTabHandle, AdminRosterTabPro
                 <TableRow
                   key={admin.id}
                   className={`hover:bg-muted/50 cursor-pointer ${selectedAdmins.has(admin.id) ? 'bg-muted/30' : ''}`}
-                  onClick={() => {
-                    setSelectedAdmins((prev) => {
-                      const next = new Set(prev)
-                      if (next.has(admin.id)) next.delete(admin.id)
-                      else next.add(admin.id)
-                      return next
-                    })
-                  }}
+                  onClick={() => openDetailModal(admin)}
                 >
                   <TableCell onClick={(e) => e.stopPropagation()}>
                     <Checkbox
@@ -361,6 +378,14 @@ export const AdminRosterTab = forwardRef<AdminRosterTabHandle, AdminRosterTabPro
           </Table>
         </div>
       )}
+
+      {/* Contact Detail Modal */}
+      <ContactDetailModal
+        open={detailOpen}
+        onOpenChange={setDetailOpen}
+        contact={detailContact}
+        onContactUpdated={() => fetchAdmins()}
+      />
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
