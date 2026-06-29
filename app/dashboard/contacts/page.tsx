@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { RefreshCw, Users, Mail, Phone, Tag, MessageSquare, Send, Plus, Edit, Trash2, Search, X, Upload, ArrowUp, ArrowDown, ArrowUpDown, UserCheck, Shield } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -26,8 +26,8 @@ import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { Checkbox } from '@/components/ui/checkbox'
 import { ContactDetailModal } from '@/components/contact-detail-modal'
-import { AgentRosterTab } from '@/components/agent-roster-tab'
-import { AdminRosterTab } from '@/components/admin-roster-tab'
+import { AgentRosterTab, AgentRosterTabHandle } from '@/components/agent-roster-tab'
+import { AdminRosterTab, AdminRosterTabHandle } from '@/components/admin-roster-tab'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 
 interface Contact {
@@ -82,10 +82,16 @@ export default function ContactsPage() {
   const [saving, setSaving] = useState(false)
   const [pushing, setPushing] = useState(false)
 
-  // Agent Roster state (lifted from child)
+  // Agent Roster state
   const [agentCount, setAgentCount] = useState(0)
   const [selectedAgentCount, setSelectedAgentCount] = useState(0)
   const [selectedAgentIds, setSelectedAgentIds] = useState<Set<string>>(new Set())
+  const agentTabRef = useRef<AgentRosterTabHandle>(null)
+
+  // Admin Roster state
+  const [adminCount, setAdminCount] = useState(0)
+  const [selectedAdminCount, setSelectedAdminCount] = useState(0)
+  const adminTabRef = useRef<AdminRosterTabHandle>(null)
 
   // Sort state
   const [sortConfig, setSortConfig] = useState<{
@@ -433,34 +439,40 @@ export default function ContactsPage() {
         )}
         {activeTab === 'agents' && (
           <div className="flex gap-2">
-            <Button variant="outline" disabled>
-              <Plus className="mr-2 h-4 w-4" />
-              New Agent
-            </Button>
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
+              onClick={() => agentTabRef.current?.openEdit()}
               disabled={selectedAgentCount !== 1}
             >
               <Edit className="mr-2 h-4 w-4" />
               Edit
             </Button>
-            <Button 
-              variant="outline" 
-              disabled={selectedAgentCount === 0}
-            >
-              <Trash2 className="mr-2 h-4 w-4" />
-              Delete ({selectedAgentCount})
-            </Button>
-            <Button disabled>
-              <RefreshCw className="mr-2 h-4 w-4" />
-              Sync from GHL
-            </Button>
-            <Button 
+            <Button
               variant="secondary"
+              onClick={() => agentTabRef.current?.pushToGHL()}
               disabled={selectedAgentCount === 0}
             >
               <Upload className="mr-2 h-4 w-4" />
               Push to GHL{selectedAgentCount > 0 ? ` (${selectedAgentCount})` : ''}
+            </Button>
+          </div>
+        )}
+        {activeTab === 'admins' && (
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={() => adminTabRef.current?.openCreate()}
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              New Admin
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => adminTabRef.current?.openEdit()}
+              disabled={selectedAdminCount !== 1}
+            >
+              <Edit className="mr-2 h-4 w-4" />
+              Edit
             </Button>
           </div>
         )}
@@ -489,6 +501,7 @@ export default function ContactsPage() {
           <TabsTrigger value="admins" className="flex items-center gap-2">
             <Shield className="h-4 w-4" />
             Admin Roster
+            {adminCount > 0 && <Badge variant="secondary" className="ml-1">{adminCount}</Badge>}
           </TabsTrigger>
         </TabsList>
 
@@ -716,12 +729,14 @@ export default function ContactsPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <AgentRosterTab 
+              <AgentRosterTab
+                ref={agentTabRef}
                 onSelectionChange={(count, ids) => {
                   setSelectedAgentCount(count)
                   setSelectedAgentIds(ids)
                 }}
                 onAgentsLoaded={(count) => setAgentCount(count)}
+                onMessage={(msg) => setSyncMessage(msg)}
               />
             </CardContent>
           </Card>
@@ -736,7 +751,12 @@ export default function ContactsPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <AdminRosterTab />
+              <AdminRosterTab
+                ref={adminTabRef}
+                onMessage={(msg) => setSyncMessage(msg)}
+                onSelectionChange={(count) => setSelectedAdminCount(count)}
+                onAdminsLoaded={(count) => setAdminCount(count)}
+              />
             </CardContent>
           </Card>
         </TabsContent>

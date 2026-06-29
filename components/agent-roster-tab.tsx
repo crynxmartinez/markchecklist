@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useImperativeHandle, forwardRef } from 'react'
 import { Search, X, ArrowUp, ArrowDown, ArrowUpDown, Edit } from 'lucide-react'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Button } from '@/components/ui/button'
@@ -55,12 +55,19 @@ interface Agent {
   updatedAt: string
 }
 
+export interface AgentRosterTabHandle {
+  openEdit: () => void
+  pushToGHL: () => Promise<void>
+  getSelectedCount: () => number
+}
+
 interface AgentRosterTabProps {
   onSelectionChange?: (count: number, selectedIds: Set<string>) => void
   onAgentsLoaded?: (count: number) => void
+  onMessage?: (msg: string) => void
 }
 
-export function AgentRosterTab({ onSelectionChange, onAgentsLoaded }: AgentRosterTabProps) {
+export const AgentRosterTab = forwardRef<AgentRosterTabHandle, AgentRosterTabProps>(function AgentRosterTab({ onSelectionChange, onAgentsLoaded, onMessage }, ref) {
   const [agents, setAgents] = useState<Agent[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
@@ -217,6 +224,40 @@ export function AgentRosterTab({ onSelectionChange, onAgentsLoaded }: AgentRoste
     setEditDialogOpen(true)
   }
 
+  const handlePushSelectedToGHL = async () => {
+    if (selectedAgents.size === 0) return
+    setPushing(true)
+    setMessage('')
+    try {
+      const res = await fetch('/api/agents/push-to-ghl', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ agentIds: Array.from(selectedAgents) }),
+      })
+      const data = await res.json()
+      const msg = `Pushed ${data.summary?.success ?? 0} agent(s) to GHL`
+      setMessage(msg)
+      onMessage?.(msg)
+    } catch {
+      setMessage('Failed to push to GHL')
+    } finally {
+      setPushing(false)
+    }
+  }
+
+  const openEditFromSelection = () => {
+    if (selectedAgents.size !== 1) return
+    const id = Array.from(selectedAgents)[0]
+    const agent = agents.find((a) => a.id === id)
+    if (agent) openEditDialog(agent)
+  }
+
+  useImperativeHandle(ref, () => ({
+    openEdit: openEditFromSelection,
+    pushToGHL: handlePushSelectedToGHL,
+    getSelectedCount: () => selectedAgents.size,
+  }))
+
   const handleSaveAgent = async () => {
     if (!editingAgent) return
     setSaving(true)
@@ -235,13 +276,12 @@ export function AgentRosterTab({ onSelectionChange, onAgentsLoaded }: AgentRoste
       }
 
       const data = await response.json()
-      
-      // Update local state
       setAgents(prev => prev.map(a => a.id === editingAgent.id ? data.agent : a))
-      setMessage(`Saved ${formData.name} successfully`)
+      const msg = `Saved ${formData.name} successfully`
+      setMessage(msg)
+      onMessage?.(msg)
       setEditDialogOpen(false)
 
-      // Also push to GHL if agent has ghlContactId
       if (editingAgent.ghlContactId) {
         try {
           await fetch('/api/agents/push-to-ghl', {
@@ -249,7 +289,9 @@ export function AgentRosterTab({ onSelectionChange, onAgentsLoaded }: AgentRoste
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ agentIds: [editingAgent.id] }),
           })
-          setMessage(`Saved ${formData.name} and synced to GHL`)
+          const m2 = `Saved ${formData.name} and synced to GHL`
+          setMessage(m2)
+          onMessage?.(m2)
         } catch {
           setMessage(`Saved ${formData.name} (GHL sync failed)`)
         }
@@ -281,7 +323,7 @@ export function AgentRosterTab({ onSelectionChange, onAgentsLoaded }: AgentRoste
 
   return (
     <div className="space-y-4">
-      {/* Search and Actions */}
+      {/* Search */}
       <div className="flex items-center justify-between">
         <div className="relative w-[350px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -664,4 +706,4 @@ export function AgentRosterTab({ onSelectionChange, onAgentsLoaded }: AgentRoste
       </Dialog>
     </div>
   )
-}
+})

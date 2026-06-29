@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useImperativeHandle, forwardRef } from 'react'
 import { Search, X, Edit } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -55,11 +55,24 @@ const EMPTY_FORM = {
   mlsId: '',
 }
 
-export function AdminRosterTab() {
+export interface AdminRosterTabHandle {
+  openEdit: () => void
+  openCreate: () => void
+  getSelectedCount: () => number
+}
+
+interface AdminRosterTabProps {
+  onMessage?: (msg: string) => void
+  onSelectionChange?: (count: number) => void
+  onAdminsLoaded?: (count: number) => void
+}
+
+export const AdminRosterTab = forwardRef<AdminRosterTabHandle, AdminRosterTabProps>(function AdminRosterTab({ onMessage, onSelectionChange, onAdminsLoaded }, ref) {
   const [admins, setAdmins] = useState<Admin[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [message, setMessage] = useState('')
+  const [selectedAdmins, setSelectedAdmins] = useState<Set<string>>(new Set())
 
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -82,6 +95,14 @@ export function AdminRosterTab() {
     fetchAdmins()
   }, [])
 
+  useEffect(() => {
+    onAdminsLoaded?.(admins.length)
+  }, [admins.length, onAdminsLoaded])
+
+  useEffect(() => {
+    onSelectionChange?.(selectedAdmins.size)
+  }, [selectedAdmins, onSelectionChange])
+
   const filtered = admins.filter((a) => {
     if (!searchQuery.trim()) return true
     const q = searchQuery.toLowerCase()
@@ -95,6 +116,19 @@ export function AdminRosterTab() {
     setFormData(EMPTY_FORM)
     setDialogOpen(true)
   }
+
+  const openEditFromSelection = () => {
+    if (selectedAdmins.size !== 1) return
+    const id = Array.from(selectedAdmins)[0]
+    const admin = admins.find((a) => a.id === id)
+    if (admin) openEdit(admin)
+  }
+
+  useImperativeHandle(ref, () => ({
+    openEdit: openEditFromSelection,
+    openCreate,
+    getSelectedCount: () => selectedAdmins.size,
+  }))
 
   const openEdit = (admin: Admin) => {
     setEditingId(admin.id)
@@ -139,12 +173,16 @@ export function AdminRosterTab() {
         setAdmins((prev) =>
           prev.map((a) => (a.id === editingId ? data.admin : a))
         )
-        setMessage(`Saved ${formData.name}`)
+        const msg = `Saved ${formData.name}`
+        setMessage(msg)
+        onMessage?.(msg)
       } else {
         setAdmins((prev) =>
           [...prev, data.admin].sort((x, y) => x.name.localeCompare(y.name))
         )
-        setMessage(`Added ${formData.name}`)
+        const msg = `Added ${formData.name}`
+        setMessage(msg)
+        onMessage?.(msg)
       }
       setDialogOpen(false)
     } catch (error) {
@@ -215,7 +253,18 @@ export function AdminRosterTab() {
             </TableHeader>
             <TableBody>
               {filtered.map((admin) => (
-                <TableRow key={admin.id} className="hover:bg-muted/50">
+                <TableRow
+                  key={admin.id}
+                  className={`hover:bg-muted/50 cursor-pointer ${selectedAdmins.has(admin.id) ? 'bg-muted/30' : ''}`}
+                  onClick={() => {
+                    setSelectedAdmins((prev) => {
+                      const next = new Set(prev)
+                      if (next.has(admin.id)) next.delete(admin.id)
+                      else next.add(admin.id)
+                      return next
+                    })
+                  }}
+                >
                   <TableCell className="font-medium">{admin.name}</TableCell>
                   <TableCell>
                     {admin.title ? (
@@ -375,4 +424,4 @@ export function AdminRosterTab() {
       </Dialog>
     </div>
   )
-}
+})
