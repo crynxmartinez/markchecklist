@@ -18,6 +18,18 @@ interface ResultRow {
   error?: string
 }
 
+// Converts a raw GHL error message into a short, user-friendly reason.
+function parseSendError(raw: string): string {
+  if (raw.includes('DND_ACTIVE') || raw.includes('DND is active')) return 'DND active — contact has opted out of SMS'
+  if (raw.includes('NO_PHONE') || raw.includes('Missing phone number')) return 'No phone number on GHL contact'
+  if (raw.includes('NO_EMAIL') || raw.includes('Missing email')) return 'No email address on GHL contact'
+  if (raw.includes('INVALID_PHONE') || raw.includes('invalid phone')) return 'Invalid phone number format'
+  if (raw.includes('401') || raw.includes('Unauthorized')) return 'GHL API key unauthorized'
+  if (raw.includes('429') || raw.includes('Too Many Requests')) return 'Rate limited by GHL — try again later'
+  if (raw.includes('500') || raw.includes('Internal Server')) return 'GHL server error'
+  return 'Send failed'
+}
+
 // Sends a single batch of recipients for a broadcast. The client orchestrates
 // multiple batches (with progress) to avoid serverless timeouts.
 export async function POST(request: Request) {
@@ -146,9 +158,13 @@ export async function POST(request: Request) {
           },
         })
       } catch (err) {
-        failed++
-        const errMsg = err instanceof Error ? err.message : 'Unknown error'
-        results.push({ agentId: r.agentId, name: r.name, status: 'FAILED', error: errMsg })
+        const rawMsg = err instanceof Error ? err.message : 'Unknown error'
+        const friendlyMsg = parseSendError(rawMsg)
+        // DND is an expected opt-out — count as skipped not failed
+        const isDnd = rawMsg.includes('DND_ACTIVE') || rawMsg.includes('DND is active')
+        const recipientStatus = isDnd ? 'SKIPPED' : 'FAILED'
+        if (isDnd) skipped++; else failed++
+        results.push({ agentId: r.agentId, name: r.name, status: recipientStatus, error: friendlyMsg })
         await prisma.broadcastRecipient.create({
           data: {
             broadcastId,
@@ -157,8 +173,8 @@ export async function POST(request: Request) {
             email: r.email,
             phone: r.phone,
             contactId,
-            status: 'FAILED',
-            error: errMsg,
+            status: recipientStatus,
+            error: friendlyMsg,
           },
         })
       }
