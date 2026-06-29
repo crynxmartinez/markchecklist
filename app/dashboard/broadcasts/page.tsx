@@ -12,6 +12,7 @@ import {
   XCircle,
   MinusCircle,
   Users,
+  ChevronDown,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -79,6 +80,15 @@ interface Broadcast {
   createdAt: string
 }
 
+interface BroadcastRecipientRow {
+  id: string
+  name: string | null
+  email: string | null
+  phone: string | null
+  status: string
+  error: string | null
+}
+
 type Channel = 'SMS' | 'EMAIL'
 type Audience = 'AGENT' | 'ADMIN'
 
@@ -106,6 +116,9 @@ export default function BroadcastsPage() {
   const [recipients, setRecipients] = useState<Recipient[]>([])
   const [loading, setLoading] = useState(true)
   const [history, setHistory] = useState<Broadcast[]>([])
+  const [expandedHistory, setExpandedHistory] = useState<Set<string>>(new Set())
+  const [historyRecipients, setHistoryRecipients] = useState<Record<string, BroadcastRecipientRow[]>>({})
+  const [historyLoading, setHistoryLoading] = useState<Set<string>>(new Set())
 
   const [audience, setAudience] = useState<Audience>('AGENT')
   const [channel, setChannel] = useState<Channel>('SMS')
@@ -124,6 +137,8 @@ export default function BroadcastsPage() {
   const [summary, setSummary] = useState<
     { sent: number; failed: number; skipped: number } | null
   >(null)
+  const [sendResults, setSendResults] = useState<{ agentId?: string; name?: string; status: string; error?: string }[]>([])
+  const [expandedErrors, setExpandedErrors] = useState<Set<number>>(new Set())
 
   const fetchRecipients = async (aud: Audience) => {
     setLoading(true)
@@ -147,6 +162,27 @@ export default function BroadcastsPage() {
       setHistory(data.broadcasts || [])
     } catch (e) {
       console.error('Failed to load history', e)
+    }
+  }
+
+  const toggleHistoryRow = async (id: string) => {
+    setExpandedHistory((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) { next.delete(id); return next }
+      next.add(id)
+      return next
+    })
+    if (!historyRecipients[id]) {
+      setHistoryLoading((prev) => new Set(prev).add(id))
+      try {
+        const res = await fetch(`/api/broadcasts/${id}/recipients`)
+        const data = await res.json()
+        setHistoryRecipients((prev) => ({ ...prev, [id]: data.recipients || [] }))
+      } catch (e) {
+        console.error('Failed to load recipients', e)
+      } finally {
+        setHistoryLoading((prev) => { const next = new Set(prev); next.delete(id); return next })
+      }
     }
   }
 
@@ -259,6 +295,8 @@ export default function BroadcastsPage() {
 
     setSending(true)
     setSummary(null)
+    setSendResults([])
+    setExpandedErrors(new Set())
     setProgress({ done: 0, total: eligible.length })
 
     try {
@@ -313,8 +351,13 @@ export default function BroadcastsPage() {
           sent += data.sent
           failed += data.failed
           skipped += data.skipped
+          if (Array.isArray(data.results)) {
+            setSendResults((prev) => [...prev, ...data.results])
+          }
         } else {
           failed += chunk.length
+          const fallback = chunk.map((r) => ({ agentId: r.id, name: r.name, status: 'FAILED', error: data.error || 'Batch failed' }))
+          setSendResults((prev) => [...prev, ...fallback])
         }
         setProgress({ done: Math.min(i + chunk.length, eligible.length), total: eligible.length })
       }
@@ -463,19 +506,67 @@ export default function BroadcastsPage() {
             )}
 
             {summary && !sending && (
-              <div className="flex flex-wrap gap-2 text-sm">
-                <Badge className="bg-green-100 text-green-800">
-                  <CheckCircle2 className="mr-1 h-3 w-3" /> Sent {summary.sent}
-                </Badge>
-                {summary.failed > 0 && (
-                  <Badge className="bg-red-100 text-red-700">
-                    <XCircle className="mr-1 h-3 w-3" /> Failed {summary.failed}
+              <div className="space-y-2">
+                <div className="flex flex-wrap gap-2 text-sm">
+                  <Badge className="bg-green-100 text-green-800">
+                    <CheckCircle2 className="mr-1 h-3 w-3" /> Sent {summary.sent}
                   </Badge>
-                )}
-                {summary.skipped > 0 && (
-                  <Badge className="bg-gray-200 text-gray-700">
-                    <MinusCircle className="mr-1 h-3 w-3" /> Skipped {summary.skipped}
-                  </Badge>
+                  {summary.failed > 0 && (
+                    <Badge className="bg-red-100 text-red-700">
+                      <XCircle className="mr-1 h-3 w-3" /> Failed {summary.failed}
+                    </Badge>
+                  )}
+                  {summary.skipped > 0 && (
+                    <Badge className="bg-gray-200 text-gray-700">
+                      <MinusCircle className="mr-1 h-3 w-3" /> Skipped {summary.skipped}
+                    </Badge>
+                  )}
+                </div>
+                {sendResults.filter((r) => r.status !== 'SENT').length > 0 && (
+                  <div className="max-h-48 overflow-auto rounded-md border text-xs">
+                    {sendResults.map((r, i) => {
+                      if (r.status === 'SENT') return null
+                      const isExpanded = expandedErrors.has(i)
+                      const isFailed = r.status === 'FAILED'
+                      return (
+                        <div key={i} className="border-b last:border-b-0">
+                          <button
+                            type="button"
+                            className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left hover:bg-muted/50"
+                            onClick={() =>
+                              setExpandedErrors((prev) => {
+                                const next = new Set(prev)
+                                if (next.has(i)) next.delete(i)
+                                else next.add(i)
+                                return next
+                              })
+                            }
+                          >
+                            <span className="flex items-center gap-1.5">
+                              {isFailed ? (
+                                <XCircle className="h-3.5 w-3.5 shrink-0 text-red-500" />
+                              ) : (
+                                <MinusCircle className="h-3.5 w-3.5 shrink-0 text-gray-400" />
+                              )}
+                              <span className={isFailed ? 'text-red-700' : 'text-muted-foreground'}>
+                                {r.name || 'Unknown'}
+                              </span>
+                            </span>
+                            <ChevronDown
+                              className={`h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform ${
+                                isExpanded ? 'rotate-180' : ''
+                              }`}
+                            />
+                          </button>
+                          {isExpanded && (
+                            <div className="border-t bg-muted/30 px-3 py-2 text-muted-foreground">
+                              {r.error || 'No details available'}
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
                 )}
               </div>
             )}
@@ -637,24 +728,88 @@ export default function BroadcastsPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {history.map((b) => (
-                    <TableRow key={b.id}>
-                      <TableCell className="whitespace-nowrap text-sm">
-                        {new Date(b.createdAt).toLocaleString()}
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="secondary">{b.channel}</Badge>
-                      </TableCell>
-                      <TableCell className="text-sm">{b.audience}</TableCell>
-                      <TableCell className="max-w-[280px] truncate text-sm text-muted-foreground">
-                        {b.subject ? `${b.subject}: ` : ''}
-                        {b.message}
-                      </TableCell>
-                      <TableCell className="text-right text-green-700">{b.sentCount}</TableCell>
-                      <TableCell className="text-right text-red-700">{b.failedCount}</TableCell>
-                      <TableCell className="text-right text-muted-foreground">{b.skippedCount}</TableCell>
-                    </TableRow>
-                  ))}
+                  {history.map((b) => {
+                    const hasIssues = b.failedCount > 0 || b.skippedCount > 0
+                    const isExpanded = expandedHistory.has(b.id)
+                    const isLoadingRow = historyLoading.has(b.id)
+                    const rowRecipients = historyRecipients[b.id] || []
+                    const problemRows = rowRecipients.filter((r) => r.status !== 'SENT')
+                    return (
+                      <>
+                        <TableRow
+                          key={b.id}
+                          className={hasIssues ? 'cursor-pointer hover:bg-muted/50' : ''}
+                          onClick={() => hasIssues && toggleHistoryRow(b.id)}
+                        >
+                          <TableCell className="whitespace-nowrap text-sm">
+                            {new Date(b.createdAt).toLocaleString()}
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="secondary">{b.channel}</Badge>
+                          </TableCell>
+                          <TableCell className="text-sm">{b.audience}</TableCell>
+                          <TableCell className="max-w-[280px] truncate text-sm text-muted-foreground">
+                            {b.subject ? `${b.subject}: ` : ''}
+                            {b.message}
+                          </TableCell>
+                          <TableCell className="text-right text-green-700">{b.sentCount}</TableCell>
+                          <TableCell className="text-right">
+                            <span className={b.failedCount > 0 ? 'text-red-700 font-medium' : 'text-muted-foreground'}>
+                              {b.failedCount}
+                            </span>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex items-center justify-end gap-1">
+                              <span className="text-muted-foreground">{b.skippedCount}</span>
+                              {hasIssues && (
+                                <ChevronDown
+                                  className={`h-3.5 w-3.5 text-muted-foreground transition-transform ${
+                                    isExpanded ? 'rotate-180' : ''
+                                  }`}
+                                />
+                              )}
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                        {isExpanded && (
+                          <TableRow key={`${b.id}-detail`}>
+                            <TableCell colSpan={7} className="p-0">
+                              <div className="border-t bg-muted/20 px-4 py-3">
+                                {isLoadingRow ? (
+                                  <p className="text-xs text-muted-foreground">Loading details...</p>
+                                ) : problemRows.length === 0 ? (
+                                  <p className="text-xs text-muted-foreground">No details available.</p>
+                                ) : (
+                                  <div className="space-y-1">
+                                    {problemRows.map((r) => {
+                                      const isFailed = r.status === 'FAILED'
+                                      return (
+                                        <div key={r.id} className="flex items-start gap-2 text-xs">
+                                          {isFailed ? (
+                                            <XCircle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-red-500" />
+                                          ) : (
+                                            <MinusCircle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-gray-400" />
+                                          )}
+                                          <span className={`font-medium ${
+                                            isFailed ? 'text-red-700' : 'text-muted-foreground'
+                                          }`}>
+                                            {r.name || r.email || r.phone || 'Unknown'}
+                                          </span>
+                                          {r.error && (
+                                            <span className="text-muted-foreground">— {r.error}</span>
+                                          )}
+                                        </div>
+                                      )
+                                    })}
+                                  </div>
+                                )}
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        )}
+                      </>
+                    )
+                  })}
                 </TableBody>
               </Table>
             </div>
