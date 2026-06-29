@@ -277,6 +277,19 @@ export async function createGHLContact(params: CreateContactParams) {
 // Upserts a contact in GHL (finds existing by email/phone, or creates).
 // Returns the contact id so we can send messages to it.
 export async function upsertGHLContact(params: CreateContactParams) {
+  const payload: Record<string, unknown> = {
+    locationId: params.locationId,
+    firstName: params.firstName,
+    lastName: params.lastName,
+    email: params.email,
+    phone: params.phone,
+    tags: params.tags || [],
+    source: params.source,
+  }
+  // Remove undefined fields — JSON.stringify silently drops them which causes
+  // GHL to never update e.g. phone even when we have it.
+  Object.keys(payload).forEach((k) => payload[k] === undefined && delete payload[k])
+
   const response = await fetch(`${GHL_API_BASE}/contacts/upsert`, {
     method: 'POST',
     headers: {
@@ -284,15 +297,7 @@ export async function upsertGHLContact(params: CreateContactParams) {
       Version: GHL_API_VERSION,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({
-      firstName: params.firstName,
-      lastName: params.lastName,
-      email: params.email,
-      phone: params.phone,
-      tags: params.tags || [],
-      source: params.source,
-      locationId: params.locationId,
-    }),
+    body: JSON.stringify(payload),
   })
 
   if (!response.ok) {

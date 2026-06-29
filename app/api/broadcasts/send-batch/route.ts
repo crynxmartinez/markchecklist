@@ -22,7 +22,7 @@ interface ResultRow {
 // - Already E.164 (+XXXXXXXXX) → pass through as-is
 // - 10 US digits → +1XXXXXXXXXX
 // - 11 digits starting with 1 → +1XXXXXXXXXX
-// - Anything else (international without +, etc.) → undefined (skip)
+// - Anything else → pass raw value so GHL still receives the number
 function toE164(phone?: string | null): string | undefined {
   if (!phone) return undefined
   const trimmed = phone.trim()
@@ -31,7 +31,8 @@ function toE164(phone?: string | null): string | undefined {
   const digits = trimmed.replace(/\D/g, '')
   if (digits.length === 10) return `+1${digits}`
   if (digits.length === 11 && digits.startsWith('1')) return `+${digits}`
-  return undefined
+  // Unknown format — pass the raw value so GHL at least has the number
+  return trimmed
 }
 
 // Converts a raw GHL error message into a short, user-friendly reason.
@@ -182,6 +183,7 @@ export async function POST(request: Request) {
         })
       } catch (err) {
         const rawMsg = err instanceof Error ? err.message : 'Unknown error'
+        console.error(`Send failed for ${r.name}:`, rawMsg)
         const friendlyMsg = parseSendError(rawMsg)
         // DND is an expected opt-out — count as skipped not failed
         const isDnd = rawMsg.includes('DND_ACTIVE') || rawMsg.includes('DND is active')
