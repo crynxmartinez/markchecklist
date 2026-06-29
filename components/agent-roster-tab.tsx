@@ -3,6 +3,7 @@
 import { useState, useEffect, useImperativeHandle, forwardRef, useRef } from 'react'
 import { Search, X, ArrowUp, ArrowDown, ArrowUpDown, Edit, Trash2 } from 'lucide-react'
 import { ContactDetailModal } from '@/components/contact-detail-modal'
+import { PushToGHLProgressModal, PushProgressItem } from '@/components/push-to-ghl-progress-modal'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -78,6 +79,10 @@ export const AgentRosterTab = forwardRef<AgentRosterTabHandle, AgentRosterTabPro
   const [itemsPerPage] = useState(50)
   const [pushing, setPushing] = useState(false)
   const [message, setMessage] = useState('')
+
+  // Push progress modal
+  const [pushModalOpen, setPushModalOpen] = useState(false)
+  const [pushItems, setPushItems] = useState<PushProgressItem[]>([])
 
   // Selection state
   const [selectedAgents, setSelectedAgents] = useState<Set<string>>(new Set())
@@ -251,23 +256,61 @@ export const AgentRosterTab = forwardRef<AgentRosterTabHandle, AgentRosterTabPro
 
   const handlePushSelectedToGHL = async () => {
     if (selectedAgents.size === 0) return
+    const ids = Array.from(selectedAgents)
+    const selectedList = agents.filter((a) => ids.includes(a.id))
+
+    // Build initial items list
+    const initial: PushProgressItem[] = selectedList.map((a) => ({
+      id: a.id,
+      name: a.name,
+      status: 'pending',
+    }))
+    setPushItems(initial)
+    setPushModalOpen(true)
     setPushing(true)
     setMessage('')
-    try {
-      const res = await fetch('/api/agents/push-to-ghl', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ agentIds: Array.from(selectedAgents) }),
-      })
-      const data = await res.json()
-      const msg = `Pushed ${data.summary?.success ?? 0} of ${data.summary?.total ?? 0} agent(s) to GHL`
-      setMessage(msg)
-      onMessage?.(msg)
-    } catch {
-      setMessage('Failed to push to GHL')
-    } finally {
-      setPushing(false)
+
+    let succeeded = 0
+    let failed = 0
+
+    for (const agent of selectedList) {
+      // Mark as pushing
+      setPushItems((prev) =>
+        prev.map((i) => (i.id === agent.id ? { ...i, status: 'pushing' } : i))
+      )
+      try {
+        const res = await fetch('/api/agents/push-to-ghl', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ agentIds: [agent.id] }),
+        })
+        const data = await res.json()
+        if (res.ok && data.summary?.success > 0) {
+          succeeded++
+          setPushItems((prev) =>
+            prev.map((i) => (i.id === agent.id ? { ...i, status: 'success' } : i))
+          )
+        } else {
+          failed++
+          const errMsg = data.results?.[0]?.error || 'Failed'
+          setPushItems((prev) =>
+            prev.map((i) => (i.id === agent.id ? { ...i, status: 'error', error: errMsg } : i))
+          )
+        }
+      } catch (err) {
+        failed++
+        setPushItems((prev) =>
+          prev.map((i) =>
+            i.id === agent.id ? { ...i, status: 'error', error: 'Network error' } : i
+          )
+        )
+      }
     }
+
+    const msg = `Pushed ${succeeded} of ${selectedList.length} agent(s) to GHL`
+    setMessage(msg)
+    onMessage?.(msg)
+    setPushing(false)
   }
 
   const handleDeleteSelected = async () => {
@@ -566,6 +609,13 @@ export const AgentRosterTab = forwardRef<AgentRosterTabHandle, AgentRosterTabPro
           </div>
         </div>
       )}
+
+      {/* Push Progress Modal */}
+      <PushToGHLProgressModal
+        open={pushModalOpen}
+        items={pushItems}
+        onClose={() => setPushModalOpen(false)}
+      />
 
       {/* Contact Detail Modal */}
       <ContactDetailModal

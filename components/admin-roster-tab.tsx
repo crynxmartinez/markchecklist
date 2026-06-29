@@ -3,6 +3,7 @@
 import { useState, useEffect, useImperativeHandle, forwardRef, useRef } from 'react'
 import { Search, X, Edit, Trash2, Upload } from 'lucide-react'
 import { ContactDetailModal } from '@/components/contact-detail-modal'
+import { PushToGHLProgressModal, PushProgressItem } from '@/components/push-to-ghl-progress-modal'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
@@ -78,6 +79,10 @@ export const AdminRosterTab = forwardRef<AdminRosterTabHandle, AdminRosterTabPro
   const [message, setMessage] = useState('')
   const [selectedAdmins, setSelectedAdmins] = useState<Set<string>>(new Set())
   const [pushing, setPushing] = useState(false)
+
+  // Push progress modal
+  const [pushModalOpen, setPushModalOpen] = useState(false)
+  const [pushItems, setPushItems] = useState<PushProgressItem[]>([])
 
   // Detail modal
   const [detailOpen, setDetailOpen] = useState(false)
@@ -174,23 +179,56 @@ export const AdminRosterTab = forwardRef<AdminRosterTabHandle, AdminRosterTabPro
 
   const handlePushToGHL = async () => {
     if (selectedAdmins.size === 0) return
+    const ids = Array.from(selectedAdmins)
+    const selectedList = admins.filter((a) => ids.includes(a.id))
+
+    const initial: PushProgressItem[] = selectedList.map((a) => ({
+      id: a.id,
+      name: a.name,
+      status: 'pending',
+    }))
+    setPushItems(initial)
+    setPushModalOpen(true)
     setPushing(true)
     setMessage('')
-    try {
-      const res = await fetch('/api/admins/push-to-ghl', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ adminIds: Array.from(selectedAdmins) }),
-      })
-      const data = await res.json()
-      const msg = `Pushed ${data.summary?.success ?? 0} of ${data.summary?.total ?? 0} admin(s) to GHL`
-      setMessage(msg)
-      onMessage?.(msg)
-    } catch {
-      setMessage('Failed to push to GHL')
-    } finally {
-      setPushing(false)
+
+    let succeeded = 0
+
+    for (const admin of selectedList) {
+      setPushItems((prev) =>
+        prev.map((i) => (i.id === admin.id ? { ...i, status: 'pushing' } : i))
+      )
+      try {
+        const res = await fetch('/api/admins/push-to-ghl', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ adminIds: [admin.id] }),
+        })
+        const data = await res.json()
+        if (res.ok && data.summary?.success > 0) {
+          succeeded++
+          setPushItems((prev) =>
+            prev.map((i) => (i.id === admin.id ? { ...i, status: 'success' } : i))
+          )
+        } else {
+          const errMsg = data.results?.[0]?.error || 'Failed'
+          setPushItems((prev) =>
+            prev.map((i) => (i.id === admin.id ? { ...i, status: 'error', error: errMsg } : i))
+          )
+        }
+      } catch {
+        setPushItems((prev) =>
+          prev.map((i) =>
+            i.id === admin.id ? { ...i, status: 'error', error: 'Network error' } : i
+          )
+        )
+      }
     }
+
+    const msg = `Pushed ${succeeded} of ${selectedList.length} admin(s) to GHL`
+    setMessage(msg)
+    onMessage?.(msg)
+    setPushing(false)
   }
 
   useImperativeHandle(ref, () => ({
@@ -376,6 +414,13 @@ export const AdminRosterTab = forwardRef<AdminRosterTabHandle, AdminRosterTabPro
           </Table>
         </div>
       )}
+
+      {/* Push Progress Modal */}
+      <PushToGHLProgressModal
+        open={pushModalOpen}
+        items={pushItems}
+        onClose={() => setPushModalOpen(false)}
+      />
 
       {/* Contact Detail Modal */}
       <ContactDetailModal
