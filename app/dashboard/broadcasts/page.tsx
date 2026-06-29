@@ -356,7 +356,7 @@ export default function BroadcastsPage() {
           }
         } else {
           failed += chunk.length
-          const fallback = chunk.map((r) => ({ agentId: r.id, name: r.name, status: 'FAILED', error: data.error || 'Batch failed' }))
+          const fallback = chunk.map((r) => ({ agentId: r.id, name: r.name ?? undefined, status: 'FAILED', error: data.error || 'Batch failed' }))
           setSendResults((prev) => [...prev, ...fallback])
         }
         setProgress({ done: Math.min(i + chunk.length, eligible.length), total: eligible.length })
